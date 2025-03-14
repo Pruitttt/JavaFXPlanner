@@ -1,0 +1,32 @@
+/* General app background */
+.root {
+    -fx-background-color: #f4f4f4;
+}
+
+/* Style for all buttons */
+.button {
+    -fx-background-color: #2E86C1;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-padding: 10px 16px;
+    -fx-border-radius: 5px;
+}
+
+/* Button hover effect */
+.button:hover {
+    -fx-background-color: #1B4F72;
+}
+
+/* ListView Styling */
+.list-view {
+    -fx-border-color: #2E86C1;
+    -fx-border-width: 1px;
+    -fx-background-color: white;
+}
+
+/* Centered Labels */
+.label {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+}
