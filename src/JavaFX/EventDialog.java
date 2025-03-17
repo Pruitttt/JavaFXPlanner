@@ -119,46 +119,66 @@ public class EventDialog extends Dialog<TimeSlot> {
                     return;
                 }
 
-                // Validate date and time
-                int month = Integer.parseInt(monthField.getText());
-                int day = Integer.parseInt(dayField.getText());
-                int year = Integer.parseInt(yearField.getText());
-                int hour = Integer.parseInt(hourField.getText());
-                int minute = Integer.parseInt(minuteField.getText());
+                // Normalize and pad month & day to two digits
+                String monthStr = monthField.getText().trim();
+                String dayStr = dayField.getText().trim();
+                if (monthStr.length() == 1) monthStr = "0" + monthStr;
+                if (dayStr.length() == 1) dayStr = "0" + dayStr;
 
-                if (month < 1 || month > 12 || day < 1 || day > 31 || hour < 1 || hour > 12 || minute < 0 || minute > 59) {
-                    showAlert("Invalid Input", "Ensure month, day, hour, and minute are in valid ranges.");
+                // Normalize year (default to current year if empty)
+                String yearStr = yearField.getText().trim();
+                if (yearStr.isEmpty()) {
+                    yearStr = String.valueOf(LocalDateTime.now().getYear());
+                } else {
+                    while (yearStr.length() < 4) yearStr = "0" + yearStr;
+                }
+
+                // Convert to integers
+                int month = Integer.parseInt(monthStr);
+                int day = Integer.parseInt(dayStr);
+                int year = Integer.parseInt(yearStr);
+
+                // Parse hour (default: 12 if empty)
+                int hour = hourField.getText().trim().isEmpty()
+                        ? 12 : Integer.parseInt(hourField.getText().trim());
+
+                // Parse minute (default: 0 if empty)
+                int minute = minuteField.getText().trim().isEmpty()
+                        ? 0 : Integer.parseInt(minuteField.getText().trim());
+
+                // Default AM/PM if not selected
+                String amPmValue = amPmDropdown.getValue();
+                if (amPmValue == null || amPmValue.trim().isEmpty()) amPmValue = "AM";
+
+                // Validate numeric ranges
+                if (month < 1 || month > 12 || day < 1 || day > 31 ||
+                        hour < 1 || hour > 12 || minute < 0 || minute > 59) {
+                    showAlert("Invalid Input", "Ensure month, day, hour, and minute are within valid ranges.");
                     event.consume();
                     return;
                 }
 
-                // Validate AM/PM selected
-                if (amPmDropdown.getValue() == null) {
-                    showAlert("Invalid Input", "Please select AM or PM.");
-                    event.consume();
-                    return;
-                }
+                // Convert to 24-hour time
+                if ("PM".equals(amPmValue) && hour < 12) hour += 12;
+                if ("AM".equals(amPmValue) && hour == 12) hour = 0;
 
-                // Date and time conversion check
-                if ("PM".equals(amPmDropdown.getValue()) && hour < 12) {
-                    hour += 12;
-                } else if ("AM".equals(amPmDropdown.getValue()) && hour == 12) {
-                    hour = 0;
-                }
-
+                // Construct event datetime
                 LocalDateTime dateTime = LocalDateTime.of(year, month, day, hour, minute);
 
                 // If a new class was entered, save it
                 if (!newClass.isEmpty()) {
                     PlannerService plannerService = new PlannerService();
-                    plannerService.addNewClass(newClass);
+                    if (!plannerService.classExists(newClass)) { // Avoid duplicate class entries
+                        plannerService.addNewClass(newClass);
+                    }
                 }
 
-                // Everything is validated; no event.consume(), window will close normally here
-
+            } catch (NumberFormatException e) {
+                showAlert("Invalid Input", "Ensure month, day, year, hour, and minute contain valid numbers.");
+                event.consume(); // Prevents dialog from closing on invalid input
             } catch (Exception e) {
-                showAlert("Invalid Input", "Ensure all fields contain valid numbers and the date format is correct.");
-                event.consume(); // Keep window open
+                showAlert("Invalid Input", "Unexpected error. Check inputs and try again.");
+                event.consume();
             }
         });
 
@@ -166,36 +186,86 @@ public class EventDialog extends Dialog<TimeSlot> {
         setResultConverter(button -> {
             if (button == ButtonType.OK) {
                 try {
-                    String finalClass = newClassField.getText().isEmpty() ? classDropdown.getValue() : newClassField.getText().trim();
-                    int month = Integer.parseInt(monthField.getText());
-                    int day = Integer.parseInt(dayField.getText());
-                    int year = Integer.parseInt(yearField.getText());
-                    int hour = Integer.parseInt(hourField.getText());
-                    int minute = Integer.parseInt(minuteField.getText());
+                    String finalClass = newClassField.getText().isEmpty()
+                            ? classDropdown.getValue()
+                            : newClassField.getText().trim();
 
-                    if ("PM".equals(amPmDropdown.getValue()) && hour < 12) {
-                        hour += 12;
-                    } else if ("AM".equals(amPmDropdown.getValue()) && hour == 12) {
-                        hour = 0;
+                    String eventName = eventNameField.getText().trim();
+
+                    if (finalClass == null || finalClass.isEmpty()) {
+                        showAlert("Invalid Input", "Please select or enter a class name.");
+                        return null;
                     }
 
+                    if (eventName.isEmpty()) {
+                        showAlert("Invalid Input", "Event Name cannot be empty.");
+                        return null;
+                    }
+
+                    // Normalize and pad month & day to two digits
+                    String monthStr = monthField.getText().trim();
+                    String dayStr = dayField.getText().trim();
+                    if (monthStr.length() == 1) monthStr = "0" + monthStr;
+                    if (dayStr.length() == 1) dayStr = "0" + dayStr;
+
+                    // Normalize year (default to current year if empty)
+                    String yearStr = yearField.getText().trim();
+                    if (yearStr.isEmpty()) {
+                        yearStr = String.valueOf(LocalDateTime.now().getYear());
+                    } else {
+                        while (yearStr.length() < 4) yearStr = "0" + yearStr;
+                    }
+
+                    // Convert to integers
+                    int month = Integer.parseInt(monthStr);
+                    int day = Integer.parseInt(dayStr);
+                    int year = Integer.parseInt(yearStr);
+
+                    // Handle hour and minute (defaults if empty)
+                    int hour = hourField.getText().trim().isEmpty()
+                            ? 12 : Integer.parseInt(hourField.getText().trim());
+
+                    int minute = minuteField.getText().trim().isEmpty()
+                            ? 0 : Integer.parseInt(minuteField.getText().trim());
+
+                    // Default AM/PM
+                    String amPm = amPmDropdown.getValue();
+                    if (amPm == null || amPm.isEmpty()) amPm = "AM";
+
+                    // Validate ranges
+                    if (month < 1 || month > 12 || day < 1 || day > 31 || hour < 1 || hour > 12 || minute < 0 || minute > 59) {
+                        showAlert("Invalid Input", "Month, day, hour, or minute values are invalid.");
+                        return null;
+                    }
+
+                    // Convert to 24-hour format
+                    if ("PM".equals(amPm) && hour < 12) hour += 12;
+                    if ("AM".equals(amPm) && hour == 12) hour = 0;
+
+                    // Create the event with the correctly formatted date
                     LocalDateTime dateTime = LocalDateTime.of(year, month, day, hour, minute);
 
-                    // Save new class if needed
+                    // Save new class if entered
                     if (!newClassField.getText().trim().isEmpty()) {
                         PlannerService plannerService = new PlannerService();
-                        plannerService.addNewClass(finalClass);
+                        if (!plannerService.classExists(finalClass)) {
+                            plannerService.addNewClass(finalClass);
+                        }
                     }
 
-                    return new TimeSlot(finalClass, eventNameField.getText().trim(), dateTime, descField.getText().trim());
+                    return new TimeSlot(finalClass, eventName, dateTime, descField.getText().trim());
 
-                } catch (Exception ignored) {
-                    // This shouldn't happen due to prior validation, but return null if it does
+                } catch (NumberFormatException e) {
+                    showAlert("Invalid Input", "Ensure numeric fields contain valid numbers.");
+                    return null;
+                } catch (Exception e) {
+                    showAlert("Invalid Input", "Ensure all date fields are valid.");
                     return null;
                 }
             }
-            return null; // Cancel button
+            return null; // Cancel or invalid input
         });
+
 
 
 

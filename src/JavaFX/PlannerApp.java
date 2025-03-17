@@ -1,6 +1,7 @@
 package JavaFX;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -18,31 +19,40 @@ import javafx.stage.Window;
 
 
 public class PlannerApp extends Application {
+    private static PlannerApp instance;
     private PlannerService plannerService = new PlannerService();
     private ListView<String> upcomingEventsList;
     private static final Set<Stage> openWindows = new HashSet<>();
 
     @Override
     public void start(Stage primaryStage) {
-        plannerService.movePastEventsToStorage(); // Remove past events automatically
+        instance = this;
 
+        // Initialize UI first to avoid NullPointerException
         VBox root = new VBox(10);
         root.setPadding(new Insets(10));
+
+        // Initialize the list BEFORE updating it
+        upcomingEventsList = new ListView<>();
+
+        // Register a listener for updates
+        plannerService.addUpdateListener(() -> Platform.runLater(this::updateUpcomingEvents));
+
+        // Ensure past events are handled before populating UI
+        plannerService.movePastEventsToStorage();
+        updateUpcomingEvents(); // This is safe now
 
         // Buttons for adding events and viewing by class
         Button addEventBtn = new Button("Add Event");
         addEventBtn.setOnAction(e -> {
             plannerService.addEvent();
-            updateUpcomingEvents();
         });
 
         Button viewByClassBtn = new Button("Class View");
-        viewByClassBtn.setOnAction(e -> {
-            selectClassWindow();
-        });
+        viewByClassBtn.setOnAction(e -> selectClassWindow());
 
         Button recentEventsBtn = new Button("Past Events");
-        recentEventsBtn.setOnAction(e -> showPastEvents()); // Opens past events window
+        recentEventsBtn.setOnAction(e -> showPastEvents());
 
         // Set button widths for symmetry
         double buttonWidth = 225;
@@ -50,16 +60,11 @@ public class PlannerApp extends Application {
         viewByClassBtn.setPrefWidth(buttonWidth);
         recentEventsBtn.setPrefWidth(buttonWidth);
 
-        // Initialize upcomingEventsList BEFORE updating it
-        upcomingEventsList = new ListView<>();
-        updateUpcomingEvents(); // Safe to call after initialization
-
         // Clicking on an event shows details
         upcomingEventsList.setOnMouseClicked(event -> {
             if (event.getClickCount() == 2) {
                 String selectedEvent = upcomingEventsList.getSelectionModel().getSelectedItem();
                 if (selectedEvent != null) {
-
                     String[] parts = selectedEvent.split(" - ");
                     if (parts.length < 3) {
                         showAlert("Error", "Invalid event format.");
@@ -71,7 +76,6 @@ public class PlannerApp extends Application {
                     String dateTime = parts[2].trim();
 
                     TimeSlot eventDetails = plannerService.getEventByDetails(className, eventName, dateTime);
-
                     if (eventDetails != null) {
                         showEventDetails(eventDetails);
                     } else {
@@ -81,53 +85,74 @@ public class PlannerApp extends Application {
             }
         });
 
-        // Center buttons in an HBox
+        // Arrange buttons in a row
         HBox buttonRow = new HBox(10, addEventBtn, viewByClassBtn, recentEventsBtn);
         buttonRow.setAlignment(Pos.CENTER);
 
-        // Add elements to the root layout
-        root.getChildren().addAll(
-                new Label("Upcoming Events:"), upcomingEventsList, buttonRow
-        );
+        // Add components to the root layout
+        root.getChildren().addAll(new Label("Upcoming Events:"), upcomingEventsList, buttonRow);
 
+        // Create scene and apply stylesheet
         Scene scene = new Scene(root, 450, 500);
-
-        // Load the CSS file
         String cssFile = getClass().getResource("styles.css").toExternalForm();
         scene.getStylesheets().add(cssFile);
 
+        // Configure and show primary stage
         primaryStage.setTitle("Planner App");
         primaryStage.setScene(scene);
         primaryStage.setOnCloseRequest(event -> {
             for (Stage stage : new HashSet<>(openWindows)) {
-                stage.close(); // Close each open window
+                stage.close();
             }
         });
         primaryStage.show();
     }
 
 
+    public static void refreshPastEventsWindow() {
+        Platform.runLater(() -> {
+            for (Stage stage : openWindows) {
+                if (stage.getTitle().equals("Past Events")) {
+                    VBox vbox = (VBox) stage.getScene().getRoot();
 
-    /** Updates the upcoming events list */
+                    // Find the TableView inside the VBox
+                    for (Node node : vbox.getChildren()) {
+                        if (node instanceof TableView) {
+                            TableView<TimeSlot> pastEventsTable = (TableView<TimeSlot>) node;
+                            System.out.println("🔄 Refreshing Past Events window...");
+                            pastEventsTable.getItems().setAll(new PlannerService().loadPastEvents()); // ✅ Reload past events
+                            return; // Exit after updating the table
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+
+
     private void updateUpcomingEvents() {
+        System.out.println("🔄 Updating upcoming events..."); // Debugging
 
-        List<TimeSlot> events = plannerService.getUpcomingEvents(); // Fetch upcoming events
-        upcomingEventsList.getItems().clear(); // Clear existing list
+        List<TimeSlot> events = plannerService.getUpcomingEvents();
+        upcomingEventsList.getItems().clear();
 
-        // Ensure events from deleted classes are removed
         events.removeIf(event -> !plannerService.classExists(event.getClassName()));
 
-        // Sort events by soonest date
         events.sort(Comparator.comparing(TimeSlot::getDateTime));
 
         if (events.isEmpty()) {
             upcomingEventsList.getItems().add("No upcoming events.");
         } else {
             for (TimeSlot event : events) {
+                System.out.println("✅ Adding event to UI: " + event); // Debugging
                 upcomingEventsList.getItems().add(event.getClassName() + " - " + event.getEventName() + " - " + event.getDateTimeFormatted());
             }
         }
     }
+
+
+
 
 
 
@@ -158,10 +183,18 @@ public class PlannerApp extends Application {
 
         deleteButton.setOnAction(e -> {
             boolean deleted = confirmAndDeleteEvent(event);
+            System.out.println("Delete button pressed. Deleted: " + deleted); // Debugging
+
             if (deleted) {
-                dialog.close(); // Ensure it closes if deleted
+                System.out.println("Closing event details dialog..."); // Debugging
+                Platform.runLater(() -> {
+                    dialog.setResult(ButtonType.CLOSE); // ✅ Ensure dialog properly closes
+                    dialog.close();
+                });
             }
         });
+
+
 
         double buttonWidth = 120;
         modifyButton.setPrefWidth(buttonWidth);
@@ -189,7 +222,6 @@ public class PlannerApp extends Application {
 
 
 
-
     private boolean confirmAndDeleteEvent(TimeSlot event) {
         Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
         confirmDialog.setTitle("Delete Event");
@@ -197,11 +229,16 @@ public class PlannerApp extends Application {
         confirmDialog.setContentText(event.getEventName() + " (" + event.getClassName() + ")");
 
         return confirmDialog.showAndWait().filter(response -> response == ButtonType.OK).map(response -> {
-            plannerService.deleteEvent(event.getEventName());
+            plannerService.deleteEvent(event.getEventName(), event.getClassName()); // Delete event
             updateUpcomingEvents();
-            return true; // Indicates deletion
-        }).orElse(false); // If canceled, return false
+
+            boolean stillExists = plannerService.getEventByDetails(event.getClassName(), event.getEventName(), event.getDateTimeFormatted()) != null;
+            System.out.println("Event deleted successfully: " + !stillExists); // Debugging
+
+            return !stillExists; // Return true only if event was deleted
+        }).orElse(false);
     }
+
 
 
 
@@ -252,39 +289,52 @@ public class PlannerApp extends Application {
 
                 if (className.isEmpty() || eventName.isEmpty()) {
                     showAlert("Invalid Input", "Class and Event Name cannot be empty.");
-                    return; // Validation error; window stays open
+                    return; // Keeps window open
                 }
 
+                // Parse all required fields safely with defaults
                 int month = Integer.parseInt(monthField.getText().trim());
                 int day = Integer.parseInt(dayField.getText().trim());
-                int year = Integer.parseInt(yearField.getText().trim());
-                int hour = Integer.parseInt(hourField.getText().trim());
-                int minute = Integer.parseInt(minuteField.getText().trim());
+
+                int year = yearField.getText().trim().isEmpty()
+                        ? LocalDateTime.now().getYear() // default to current year
+                        : Integer.parseInt(yearField.getText().trim());
+
+                int hour = hourField.getText().trim().isEmpty()
+                        ? 12 : Integer.parseInt(hourField.getText().trim());
+
+                int minute = minuteField.getText().trim().isEmpty()
+                        ? 0 : Integer.parseInt(minuteField.getText().trim());
+
+                String amPmValue = amPmDropdown.getValue();
+                if (amPmValue == null || amPmValue.trim().isEmpty()) {
+                    amPmValue = "AM"; // default to AM
+                }
 
                 if (month < 1 || month > 12 || day < 1 || day > 31 ||
                         hour < 1 || hour > 12 || minute < 0 || minute > 59) {
-                    showAlert("Invalid Input", "Ensure month, day, hour, and minute are in valid ranges.");
-                    return; // Validation error; window stays open
+                    showAlert("Invalid Input", "Ensure month, day, hour, and minute are valid.");
+                    return;
                 }
 
-                // Convert hour from 12-hour to 24-hour format
-                if ("PM".equals(amPmDropdown.getValue()) && hour < 12) hour += 12;
-                if ("AM".equals(amPmDropdown.getValue()) && hour == 12) hour = 0;
+                // Convert to 24-hour time
+                if ("PM".equals(amPmValue) && hour < 12) hour += 12;
+                if ("AM".equals(amPmValue) && hour == 12) hour = 0;
 
                 LocalDateTime dateTime = LocalDateTime.of(year, month, day, hour, minute);
 
-                TimeSlot updatedEvent = new TimeSlot(classField.getText().trim(), nameField.getText().trim(), dateTime, descField.getText().trim());
+                TimeSlot updatedEvent = new TimeSlot(className, eventName, dateTime, description);
 
                 plannerService.updateEvent(event, updatedEvent);
 
                 modifyStage.close();
-                openWindows.remove(modifyStage); // Properly remove from tracking after closure
                 updateUpcomingEvents();
 
             } catch (Exception ex) {
-                showAlert("Invalid Input", "Ensure all date/time fields contain valid numbers and correct formats.");
+                showAlert("Invalid Input", "Ensure all date/time fields contain valid numbers.");
             }
         });
+
 
         // Trigger saveButton on pressing Enter
         classField.setOnKeyPressed(e -> { if (e.getCode().equals(KeyCode.ENTER)) saveButton.fire(); });
@@ -347,11 +397,12 @@ public class PlannerApp extends Application {
 
 
     private void showPastEvents() {
+        plannerService.movePastEventsToStorage(); // ✅ Ensure past events are moved before displaying
 
-        List<TimeSlot> pastEvents = plannerService.loadPastEvents(); // Load past events
+        List<TimeSlot> pastEvents = plannerService.loadPastEvents(); // Reload past events
 
         Stage pastStage = new Stage();
-        openWindows.add(pastStage); // Track this window
+        openWindows.add(pastStage); // ✅ Track this window
 
         VBox vbox = new VBox(10);
         vbox.setPadding(new Insets(10));
@@ -368,48 +419,84 @@ public class PlannerApp extends Application {
         classCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getClassName()));
 
         tableView.getColumns().addAll(nameCol, dateCol, classCol);
-        tableView.getItems().addAll(pastEvents);
+        tableView.getItems().setAll(pastEvents); // ✅ Ensures fresh data is loaded
 
-        // Clicking on an event opens the details window
-        tableView.setOnMouseClicked(event -> {
-            TimeSlot selectedEvent = tableView.getSelectionModel().getSelectedItem();
-            if (selectedEvent != null) {
-                showEventDetails(selectedEvent); // Open event details
+        // 🗑️ Add "Clear All Past Events" Button
+        Button clearPastEventsBtn = new Button("Clear All Past Events");
+        clearPastEventsBtn.setStyle("-fx-background-color: #ff4c4c; -fx-text-fill: white; -fx-font-weight: bold;");
+
+        clearPastEventsBtn.setOnAction(e -> {
+            Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmDialog.setTitle("Clear Past Events");
+            confirmDialog.setHeaderText("Are you sure you want to delete ALL past events?");
+            confirmDialog.setContentText("This action cannot be undone.");
+
+            Optional<ButtonType> result = confirmDialog.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                plannerService.clearPastEvents(); // ✅ Deletes past_events.txt content
+                tableView.getItems().clear(); // ✅ Clear UI after deletion
             }
         });
 
-        vbox.getChildren().addAll(new Label("Past Events:"), tableView);
-        Scene scene = new Scene(vbox, 500, 400);
+        // Layout
+        HBox buttonBox = new HBox(clearPastEventsBtn);
+        buttonBox.setAlignment(Pos.CENTER);
+
+        vbox.getChildren().addAll(new Label("Past Events:"), tableView, buttonBox);
+        Scene scene = new Scene(vbox, 500, 450);
         pastStage.setTitle("Past Events");
         pastStage.setScene(scene);
 
-        // Ensure the window is tracked and removed when closed
-        pastStage.setOnCloseRequest(e -> openWindows.remove(pastStage));
+        pastStage.setOnCloseRequest(e -> openWindows.remove(pastStage)); // ✅ Remove from tracked windows
 
         pastStage.show();
     }
 
 
+
+
+
     /** Deletes an event */
     private void deleteEvent() {
+        List<TimeSlot> events = plannerService.loadEvents(); // Load full event objects
 
-
-        List<String> events = plannerService.getEventNames();
         if (events.isEmpty()) {
             showAlert("No Events", "There are no events to delete.");
             return;
         }
 
-        ChoiceDialog<String> dialog = new ChoiceDialog<>(events.get(0), events);
+        // Format events as "Class - Event - Date"
+        List<String> eventOptions = new ArrayList<>();
+        for (TimeSlot event : events) {
+            eventOptions.add(event.getClassName() + " - " + event.getEventName() + " - " + event.getDateTimeFormatted());
+        }
+
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(eventOptions.get(0), eventOptions);
         dialog.setTitle("Delete Event");
         dialog.setHeaderText("Select an event to delete:");
         dialog.setContentText("Event:");
 
-        dialog.showAndWait().ifPresent(eventName -> {
-            plannerService.deleteEvent(eventName);
-            updateUpcomingEvents();
+        dialog.showAndWait().ifPresent(selectedString -> {
+            String[] parts = selectedString.split(" - ");
+            if (parts.length < 3) {
+                showAlert("Error", "Invalid event format.");
+                return;
+            }
+
+            String className = parts[0].trim();
+            String eventName = parts[1].trim();
+            String dateTime = parts[2].trim();
+
+            TimeSlot eventToDelete = plannerService.getEventByDetails(className, eventName, dateTime);
+            if (eventToDelete != null) {
+                plannerService.deleteEvent(eventToDelete.getEventName(), eventToDelete.getClassName()); // ✅ Updated to use two parameters
+                updateUpcomingEvents();
+            } else {
+                showAlert("Error", "Event not found.");
+            }
         });
     }
+
 
     /** Deletes a class */
     private void deleteClass() {
@@ -431,6 +518,11 @@ public class PlannerApp extends Application {
         });
     }
 
+    public static void updateUI() { //
+        if (instance != null) {
+            Platform.runLater(() -> instance.updateUpcomingEvents());
+        }
+    }
 
     /** Displays the window to choose a class */
     private void selectClassWindow() {
