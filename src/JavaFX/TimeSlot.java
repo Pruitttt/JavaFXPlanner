@@ -35,9 +35,10 @@ public class TimeSlot {
     }
 
     public String getDateTimeFormatted() {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm a"); // 🔹 12-hour format with AM/PM
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMMM d, yyyy"); // 📆 Example: "March 19, 2025"
         return dateTime.format(formatter);
     }
+
 
 
     @Override

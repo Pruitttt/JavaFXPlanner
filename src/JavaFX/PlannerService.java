@@ -85,7 +85,6 @@ public class PlannerService {
 
 
     public void movePastEventsToStorage() {
-        System.out.println("📂 Moving past events to storage...");
 
         List<TimeSlot> allEvents = loadEvents();
         List<TimeSlot> upcomingEvents = new ArrayList<>();
@@ -101,7 +100,7 @@ public class PlannerService {
             }
         }
 
-        // 🔥 Save past events separately
+        //  Save past events separately
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(PAST_EVENTS_FILE, true))) {
             for (TimeSlot event : pastEvents) {
                 writer.write(event.toString());
@@ -111,19 +110,14 @@ public class PlannerService {
             e.printStackTrace();
         }
 
-        // 🔥 Save updated upcoming events
+        //  Save updated upcoming events
         saveEvents(upcomingEvents);
 
-        System.out.println("✅ Past events moved. Notifying UI...");
 
-        // 🔥 Force UI update
+        //  Force UI update
         notifyUpdateListeners();
         PlannerApp.refreshPastEventsWindow();
     }
-
-
-
-
 
 
     // Saves the event to planner.txt
@@ -131,12 +125,11 @@ public class PlannerService {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(EVENT_FILE, true))) {
             writer.write(event.toString());
             writer.newLine();
-            System.out.println("✅ Event saved: " + event);
 
-            // 🔥 Immediately move past events when a new event is added
+            // Immediately move past events when a new event is added
             movePastEventsToStorage();
 
-            // 🔥 Notify UI to refresh
+            // Notify UI to refresh
             notifyUpdateListeners();
         } catch (IOException e) {
             e.printStackTrace();
@@ -203,41 +196,29 @@ public class PlannerService {
     public void addEvent() {
         EventDialog dialog = new EventDialog(loadClasses());
 
-        System.out.println("📌 Event dialog opened... Waiting for user input..."); // Debugging
-
-        dialog.showAndWait().ifPresent(event -> {  // ✅ Only runs if event is confirmed
-            System.out.println("✅ Event confirmed: " + event.getEventName());
+        dialog.showAndWait().ifPresent(event -> {  // Only runs if event is confirmed
 
             saveEvent(event);
 
-            System.out.println("📂 Now moving past events to storage...");
-            movePastEventsToStorage(); // ✅ Now only moves past events AFTER event is confirmed
+            movePastEventsToStorage(); // Now only moves past events AFTER event is confirmed
 
-            System.out.println("🔄 Now notifying listeners...");
-            notifyUpdateListeners(); // ✅ Now only updates UI AFTER event is added
+            notifyUpdateListeners(); // Now only updates UI AFTER event is added
         });
 
-        System.out.println("❌ Dialog closed without adding an event."); // Debugging
     }
 
 
     public void addEventForClass(String className) {
         EventDialog dialog = new EventDialog(loadClasses(), className);
-        System.out.println("📌 Event dialog opened... Waiting for user input..."); // Debugging
 
-        dialog.showAndWait().ifPresent(event -> {  // ✅ Only runs if event is confirmed
-            System.out.println("✅ Event confirmed: " + event.getEventName());
+        dialog.showAndWait().ifPresent(event -> {  // Only runs if event is confirmed
 
             saveEvent(event);
 
-            System.out.println("📂 Now moving past events to storage...");
-            movePastEventsToStorage(); // ✅ Now only moves past events AFTER event is confirmed
+            movePastEventsToStorage(); //  Now only moves past events AFTER event is confirmed
 
-            System.out.println("🔄 Now notifying listeners...");
-            notifyUpdateListeners(); // ✅ Now only updates UI AFTER event is added
+            notifyUpdateListeners(); //  Now only updates UI AFTER event is added
         });
-
-        System.out.println("❌ Dialog closed without adding an event."); // Debugging
     }
 
 
@@ -259,12 +240,11 @@ public class PlannerService {
 
         if (found) {
             saveEvents(updatedEvents);
-            System.out.println("🗑 Event deleted: " + eventName);
 
-            // 🔥 Ensure past events are checked after deletion
+            //  Ensure past events are checked after deletion
             movePastEventsToStorage();
 
-            // 🔥 Notify UI
+            //  Notify UI
             notifyUpdateListeners();
         }
     }
@@ -272,19 +252,23 @@ public class PlannerService {
 
 
     public TimeSlot getEventByDetails(String className, String eventName, String dateTime) {
-
         List<TimeSlot> events = loadEvents(); // Load all events
 
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMMM d, yyyy");
+
         for (TimeSlot event : events) {
+            String formattedEventDate = event.getDateTimeFormatted();
+
             if (event.getClassName().equalsIgnoreCase(className) &&
                     event.getEventName().equalsIgnoreCase(eventName) &&
-                    event.getDateTimeFormatted().equals(dateTime)) {
+                    formattedEventDate.equals(dateTime)) {
                 return event;
             }
         }
 
         return null;
     }
+
 
     public void updateEvent(TimeSlot oldEvent, TimeSlot newEvent) {
         List<TimeSlot> events = loadEvents();
@@ -313,10 +297,8 @@ public class PlannerService {
     }
 
     private void notifyUpdateListeners() {
-        System.out.println("🔄 Notifying listeners..."); // Debugging
         for (Runnable listener : updateListeners) {
             Platform.runLater(() -> {
-                System.out.println("📢 Triggering UI update...");
                 listener.run();
             });
         }
@@ -329,7 +311,6 @@ public class PlannerService {
         List<String> classes = loadClasses();
 
         if (!classes.contains(className)) {
-            System.out.println("No such class to delete.");
             return;
         }
 
@@ -360,8 +341,6 @@ public class PlannerService {
 
         // Save only the remaining events back to planner.txt
         saveEvents(updatedEvents);
-
-        System.out.println("Deleted class: " + className + " and all its events.");
     }
 
     public boolean classExists(String className) {
@@ -386,6 +365,33 @@ public class PlannerService {
             e.printStackTrace();
         }
     }
+
+    public void moveEventToFuture(TimeSlot oldEvent, TimeSlot updatedEvent) {
+        List<TimeSlot> pastEvents = loadPastEvents();
+        List<TimeSlot> futureEvents = loadEvents();
+
+        // Remove the old event from past events
+        pastEvents.removeIf(e -> e.getEventName().equals(oldEvent.getEventName()) && e.getClassName().equals(oldEvent.getClassName()));
+
+        // Add updated event to future events list
+        futureEvents.add(updatedEvent);
+
+        // Save changes
+        savePastEvents(pastEvents); // Update past_events.txt
+        saveEvents(futureEvents);   // Update planner.txt
+    }
+
+    public void savePastEvents(List<TimeSlot> pastEvents) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("past_events.txt"))) {
+            for (TimeSlot event : pastEvents) {
+                writer.write(event.toString()); // Ensure `toFileString()` properly formats event data
+                writer.newLine();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 
 
     // Saves the updated list of events

@@ -119,8 +119,7 @@ public class PlannerApp extends Application {
                     for (Node node : vbox.getChildren()) {
                         if (node instanceof TableView) {
                             TableView<TimeSlot> pastEventsTable = (TableView<TimeSlot>) node;
-                            System.out.println("🔄 Refreshing Past Events window...");
-                            pastEventsTable.getItems().setAll(new PlannerService().loadPastEvents()); // ✅ Reload past events
+                            pastEventsTable.getItems().setAll(new PlannerService().loadPastEvents()); // Reload past events
                             return; // Exit after updating the table
                         }
                     }
@@ -132,7 +131,6 @@ public class PlannerApp extends Application {
 
 
     private void updateUpcomingEvents() {
-        System.out.println("🔄 Updating upcoming events..."); // Debugging
 
         List<TimeSlot> events = plannerService.getUpcomingEvents();
         upcomingEventsList.getItems().clear();
@@ -145,16 +143,10 @@ public class PlannerApp extends Application {
             upcomingEventsList.getItems().add("No upcoming events.");
         } else {
             for (TimeSlot event : events) {
-                System.out.println("✅ Adding event to UI: " + event); // Debugging
                 upcomingEventsList.getItems().add(event.getClassName() + " - " + event.getEventName() + " - " + event.getDateTimeFormatted());
             }
         }
     }
-
-
-
-
-
 
 
 
@@ -172,42 +164,53 @@ public class PlannerApp extends Application {
         Label classLabel = new Label("Class: " + event.getClassName());
         Label dateLabel = new Label("Date: " + event.getDateTimeFormatted());
         Label descLabel = new Label("Description: " + event.getDescription());
+        if (event.getDescription().equals("")) {
+            descLabel.setText("Description: Not Applicable");
+        }
 
-        Button modifyButton = new Button("Modify");
         Button deleteButton = new Button("Delete");
-
-        modifyButton.setOnAction(e -> {
-            modifyEvent(event);
-            dialog.close();
-        });
-
         deleteButton.setOnAction(e -> {
             boolean deleted = confirmAndDeleteEvent(event);
-            System.out.println("Delete button pressed. Deleted: " + deleted); // Debugging
-
             if (deleted) {
-                System.out.println("Closing event details dialog..."); // Debugging
                 Platform.runLater(() -> {
-                    dialog.setResult(ButtonType.CLOSE); // ✅ Ensure dialog properly closes
+                    dialog.setResult(ButtonType.CLOSE);
                     dialog.close();
                 });
             }
         });
 
-
-
-        double buttonWidth = 120;
-        modifyButton.setPrefWidth(buttonWidth);
-        deleteButton.setPrefWidth(buttonWidth);
-
-        HBox buttonBox = new HBox(10, modifyButton, deleteButton);
+        HBox buttonBox = new HBox(10);
         buttonBox.setAlignment(Pos.CENTER);
-        HBox.setHgrow(modifyButton, Priority.ALWAYS);
         HBox.setHgrow(deleteButton, Priority.ALWAYS);
+
+        // Check if the event is in the past
+        if (event.getDateTime().isAfter(LocalDateTime.now())) {
+            Button modifyButton = new Button("Modify");
+            modifyButton.setOnAction(e -> {
+                modifyEvent(event);
+                dialog.close();
+            });
+
+            modifyButton.setPrefWidth(120);
+            deleteButton.setPrefWidth(120);
+
+            HBox.setHgrow(modifyButton, Priority.ALWAYS);
+            buttonBox.getChildren().addAll(modifyButton, deleteButton);
+        } else {
+            deleteButton.setPrefWidth(120);
+            buttonBox.getChildren().add(deleteButton);
+        }
 
         VBox vbox = new VBox(10, classLabel, dateLabel, descLabel, buttonBox);
         vbox.setPadding(new Insets(10));
+        vbox.getStyleClass().add("window-container"); // Apply frosted-glass style
+
         dialog.getDialogPane().setContent(vbox);
+
+        // **Apply styles.css to the dialog**
+        Scene scene = dialog.getDialogPane().getScene();
+        String cssFile = getClass().getResource("styles.css").toExternalForm();
+        scene.getStylesheets().add(cssFile);
 
         // Remove Close button from the UI
         dialog.getDialogPane().getButtonTypes().clear();
@@ -218,6 +221,8 @@ public class PlannerApp extends Application {
 
         dialog.showAndWait();
     }
+
+
 
 
 
@@ -233,7 +238,6 @@ public class PlannerApp extends Application {
             updateUpcomingEvents();
 
             boolean stillExists = plannerService.getEventByDetails(event.getClassName(), event.getEventName(), event.getDateTimeFormatted()) != null;
-            System.out.println("Event deleted successfully: " + !stillExists); // Debugging
 
             return !stillExists; // Return true only if event was deleted
         }).orElse(false);
@@ -397,31 +401,46 @@ public class PlannerApp extends Application {
 
 
     private void showPastEvents() {
-        plannerService.movePastEventsToStorage(); // ✅ Ensure past events are moved before displaying
-
+        plannerService.movePastEventsToStorage(); // Ensure past events are moved before displaying
         List<TimeSlot> pastEvents = plannerService.loadPastEvents(); // Reload past events
 
         Stage pastStage = new Stage();
-        openWindows.add(pastStage); // ✅ Track this window
+        openWindows.add(pastStage); // Track this window
 
         VBox vbox = new VBox(10);
         vbox.setPadding(new Insets(10));
 
-        TableView<TimeSlot> tableView = new TableView<>();
+        // 🎯 ListView to display past events
+        ListView<TimeSlot> listView = new ListView<>();
+        listView.getItems().setAll(pastEvents);
 
-        TableColumn<TimeSlot, String> nameCol = new TableColumn<>("Event Name");
-        nameCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getEventName()));
+        // 📆 Custom ListCell to format events as "Event Name - Class - Month Day, Year"
+        listView.setCellFactory(lv -> new ListCell<>() {
+            private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMMM d, yyyy");
 
-        TableColumn<TimeSlot, String> dateCol = new TableColumn<>("Date");
-        dateCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getDateTimeFormatted()));
+            @Override
+            protected void updateItem(TimeSlot event, boolean empty) {
+                super.updateItem(event, empty);
+                if (empty || event == null) {
+                    setText(null);
+                } else {
+                    String formattedDate = event.getDateTime().format(formatter);
+                    setText(event.getEventName() + " - " + event.getClassName() + " - " + formattedDate);
+                }
+            }
+        });
 
-        TableColumn<TimeSlot, String> classCol = new TableColumn<>("Class");
-        classCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getClassName()));
+        // ✨ Enable Double-Click to Open Event Details Dialog
+        listView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) { // Double-click detection
+                TimeSlot selectedEvent = listView.getSelectionModel().getSelectedItem();
+                if (selectedEvent != null) {
+                    showEventDetails(selectedEvent); // Open event details dialog
+                }
+            }
+        });
 
-        tableView.getColumns().addAll(nameCol, dateCol, classCol);
-        tableView.getItems().setAll(pastEvents); // ✅ Ensures fresh data is loaded
-
-        // 🗑️ Add "Clear All Past Events" Button
+        // 🗑️ "Clear All Past Events" Button
         Button clearPastEventsBtn = new Button("Clear All Past Events");
         clearPastEventsBtn.setStyle("-fx-background-color: #ff4c4c; -fx-text-fill: white; -fx-font-weight: bold;");
 
@@ -433,8 +452,8 @@ public class PlannerApp extends Application {
 
             Optional<ButtonType> result = confirmDialog.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
-                plannerService.clearPastEvents(); // ✅ Deletes past_events.txt content
-                tableView.getItems().clear(); // ✅ Clear UI after deletion
+                plannerService.clearPastEvents(); // Deletes past_events.txt content
+                listView.getItems().clear(); // Clear UI after deletion
             }
         });
 
@@ -442,19 +461,18 @@ public class PlannerApp extends Application {
         HBox buttonBox = new HBox(clearPastEventsBtn);
         buttonBox.setAlignment(Pos.CENTER);
 
-        vbox.getChildren().addAll(new Label("Past Events:"), tableView, buttonBox);
+        vbox.getChildren().addAll(new Label("Past Events:"), listView, buttonBox);
         Scene scene = new Scene(vbox, 500, 450);
+        String cssFile = getClass().getResource("styles.css").toExternalForm();
+        scene.getStylesheets().add(cssFile);
+
         pastStage.setTitle("Past Events");
         pastStage.setScene(scene);
 
-        pastStage.setOnCloseRequest(e -> openWindows.remove(pastStage)); // ✅ Remove from tracked windows
+        pastStage.setOnCloseRequest(e -> openWindows.remove(pastStage)); // Remove from tracked windows
 
         pastStage.show();
     }
-
-
-
-
 
     /** Deletes an event */
     private void deleteEvent() {
@@ -489,7 +507,7 @@ public class PlannerApp extends Application {
 
             TimeSlot eventToDelete = plannerService.getEventByDetails(className, eventName, dateTime);
             if (eventToDelete != null) {
-                plannerService.deleteEvent(eventToDelete.getEventName(), eventToDelete.getClassName()); // ✅ Updated to use two parameters
+                plannerService.deleteEvent(eventToDelete.getEventName(), eventToDelete.getClassName()); // Updated to use two parameters
                 updateUpcomingEvents();
             } else {
                 showAlert("Error", "Event not found.");
@@ -526,55 +544,57 @@ public class PlannerApp extends Application {
 
     /** Displays the window to choose a class */
     private void selectClassWindow() {
-
         List<String> classList = plannerService.loadClasses(); // Load classes
 
         Stage classStage = new Stage();
         openWindows.add(classStage); // Track this window
 
-        VBox vbox = new VBox(10);
-        vbox.setPadding(new Insets(10));
+        VBox vbox = new VBox(5); // Reduce spacing between elements
+        vbox.setPadding(new Insets(5)); // Reduce padding to bring border closer
 
-        // Create Class TableView
-        TableView<String> classTable = new TableView<>();
+        // 🎯 ListView for Class Selection
+        ListView<String> classListView = new ListView<>();
+        classListView.getItems().addAll(classList);
 
-        TableColumn<String, String> classColumn = new TableColumn<>("Class Name");
-        classColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
-        classColumn.setPrefWidth(250);
-        classTable.getColumns().add(classColumn);
+        classListView.setPrefHeight(250);
+        classListView.setMaxHeight(Double.MAX_VALUE); // Make it expand fully
 
-        classTable.setPrefHeight(250);
-        classTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        classTable.getItems().addAll(classList); // Populate table
+        VBox.setVgrow(classListView, Priority.ALWAYS); // Allow ListView to fill space
 
-        // Double Click to Open Class Events (But Keep This Window Open)
-        classTable.setOnMouseClicked(event -> {
+        // Double Click to Open Class Events
+        classListView.setOnMouseClicked(event -> {
             if (event.getClickCount() == 2) { // Double-click required
-                String selectedClass = classTable.getSelectionModel().getSelectedItem();
+                String selectedClass = classListView.getSelectionModel().getSelectedItem();
                 if (selectedClass != null) {
                     showEventsByClass(selectedClass);
-                    // Do not close classStage to keep it open
                 }
             }
         });
 
-        // Add Class Button (Below Table)
+        // Add Class Button (Below ListView)
         Button addClassBtn = new Button("Add Class");
         addClassBtn.setPrefWidth(200);
         addClassBtn.getStyleClass().add("button-primary");
         addClassBtn.setOnAction(e -> {
             plannerService.addClass();
-            classTable.getItems().setAll(plannerService.loadClasses()); // Refresh table
+            classListView.getItems().setAll(plannerService.loadClasses()); // Refresh ListView
         });
 
         // Apply CSS Style
         vbox.getStyleClass().add("window-container");
 
         // Add Components to Layout
-        vbox.getChildren().addAll(classTable, addClassBtn);
-        vbox.setAlignment(Pos.CENTER);
+        Label classes = new Label("Classes: ");
+        VBox classBtn = new VBox(addClassBtn);
+        classBtn.setAlignment(Pos.CENTER);
 
-        Scene scene = new Scene(vbox, 350, 400);
+        vbox.getChildren().addAll(classes, classListView, classBtn);
+        vbox.setAlignment(Pos.CENTER_LEFT);
+
+        // Reduce window size to match content
+        Scene scene = new Scene(vbox);
+        classStage.setMinWidth(300); // Reduce width
+        classStage.setMinHeight(350); // Adjust height dynamically
 
         // Attach styles.css
         String cssFile = getClass().getResource("styles.css").toExternalForm();
@@ -582,12 +602,15 @@ public class PlannerApp extends Application {
 
         classStage.setTitle("Select Class");
         classStage.setScene(scene);
+        classStage.sizeToScene(); // Auto-adjust window to content size
 
         // Ensure the window is tracked and removed when closed
         classStage.setOnCloseRequest(e -> openWindows.remove(classStage));
 
         classStage.show();
     }
+
+
 
 
     /** Shows events filtered by class */
@@ -671,7 +694,7 @@ public class PlannerApp extends Application {
 
 
         // Title + Delete Button (in HBox)
-        Label titleLabel = new Label("Events for " + className);
+        Label titleLabel = new Label("Events for " + className + ":");
         HBox titleRow = new HBox(10, titleLabel);
         titleRow.setAlignment(Pos.CENTER_LEFT);
 
