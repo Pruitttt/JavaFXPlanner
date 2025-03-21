@@ -2,18 +2,25 @@ package JavaFX;
 
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.VBox;
+import javafx.scene.image.Image;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import static javax.swing.text.StyleConstants.setBackground;
 
 public class EventDialog extends Dialog<TimeSlot> {
     private ComboBox<String> classDropdown;
     private TextField newClassField, eventNameField, monthField, dayField, yearField, hourField, minuteField;
     private ComboBox<String> amPmDropdown;
     private TextArea descField;
+
 
     /** Constructor for Main Menu - Allows new or existing class */
     public EventDialog(List<String> classList) {
@@ -24,13 +31,16 @@ public class EventDialog extends Dialog<TimeSlot> {
     public EventDialog(List<String> classList, String preselectedClass) {
         setTitle("Add Event");
 
+        // Main layout container (this holds all elements except the background)
+
+
         // Class selection dropdown
         classDropdown = new ComboBox<>();
         classDropdown.getItems().add("Add New Class...");
         classDropdown.getItems().addAll(classList);
         classDropdown.setPromptText("Select Existing Class or Add New");
 
-        // New class name input field (STARTS ENABLED)
+        // New class name input field
         newClassField = new TextField();
         newClassField.setPromptText("Enter New Class Name");
 
@@ -46,7 +56,6 @@ public class EventDialog extends Dialog<TimeSlot> {
             }
         });
 
-        // If class is preselected (from inside a class), disable text field
         if (preselectedClass != null) {
             classDropdown.setValue(preselectedClass);
             classDropdown.setDisable(true);
@@ -59,16 +68,13 @@ public class EventDialog extends Dialog<TimeSlot> {
 
         monthField = new TextField();
         monthField.setPromptText("MM");
-
         dayField = new TextField();
         dayField.setPromptText("DD");
-
         yearField = new TextField();
         yearField.setPromptText("YYYY");
 
         hourField = new TextField();
         hourField.setPromptText("HH");
-
         minuteField = new TextField();
         minuteField.setPromptText("MM");
 
@@ -81,36 +87,58 @@ public class EventDialog extends Dialog<TimeSlot> {
         descField.setWrapText(true);
         descField.setPrefRowCount(3);
 
-        // Layout setup
-        VBox layout = new VBox(10);
-        layout.getChildren().addAll(
+        // Form Layout
+        VBox formLayout = new VBox(10);
+        formLayout.getChildren().addAll(
                 new Label("Select Class or Add New:"), classDropdown, newClassField,
                 new Label("Event Name:"), eventNameField,
                 new Label("Date:"), monthField, dayField, yearField,
                 new Label("Time:"), hourField, minuteField, amPmDropdown,
                 new Label("Description:"), descField
-        );
-        layout.setPadding(new Insets(5, 10, 5, 10));
 
-        // Apply CSS globally to all EventDialogs
-        getDialogPane().setContent(layout);
-        getDialogPane().setStyle("-fx-border-color: transparent; -fx-border-width: 0; -fx-background-color: transparent;");
+        );
+        double fieldWidth = 300;  // Adjust as needed to fit within your box
+        classDropdown.setPrefWidth(fieldWidth);
+        eventNameField.setMaxWidth(fieldWidth);
+        monthField.setMaxWidth(fieldWidth);
+        dayField.setMaxWidth(fieldWidth);
+        yearField.setMaxWidth(fieldWidth);
+        hourField.setMaxWidth(fieldWidth);
+        minuteField.setMaxWidth(fieldWidth);
+        amPmDropdown.setMaxWidth(fieldWidth);
+        descField.setMaxWidth(fieldWidth);
+        formLayout.setPadding(new Insets(10));
+
+
+        // Translucent box behind the form (manually positioned)
+        Region translucentBox = new Region();
+        translucentBox.setId("backgroundBox");
+        translucentBox.setMouseTransparent(true);
+
+        translucentBox.prefWidthProperty().bind(formLayout.layoutBoundsProperty().map(b-> b.getWidth()));
+        translucentBox.prefHeightProperty().bind(formLayout.layoutBoundsProperty().map(b -> b.getHeight()));
+
+        ScrollPane scrollPane = new ScrollPane(formLayout);
+        scrollPane.setPrefSize(400, 500);
+        scrollPane.setPannable(true);    // Allow drag scrolling
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER); // Hide horizontal scrollbar if not needed
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+
+        StackPane stackPane = new StackPane(translucentBox, scrollPane);
+        stackPane.setPadding(new Insets(20));
+        // Create a ScrollPane to contain the StackPane
+
+        // Set ScrollPane as the dialog content
+        getDialogPane().setContent(stackPane);
+        getDialogPane().setPrefSize(400, 500);
+
         getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
-        // 🔹 Apply styles.css to all EventDialogs
+        // Apply CSS styles
         applyStyles();
-
-        // Validation before submission
-        Button okButton = (Button) getDialogPane().lookupButton(ButtonType.OK);
-        okButton.addEventFilter(ActionEvent.ACTION, event -> {
-            if (!validateFields()) {
-                event.consume(); // Prevents dialog from closing on invalid input
-            }
-        });
-
-        // Handle result conversion (ensure a TimeSlot is created only on valid input)
-        setResultConverter(button -> button == ButtonType.OK ? createTimeSlot() : null);
     }
+
+
 
     /** 🔹 Method to Apply CSS Styles Globally to Dialogs */
     private void applyStyles() {
@@ -118,6 +146,8 @@ public class EventDialog extends Dialog<TimeSlot> {
         if (scene != null) {
             String cssFile = getClass().getResource("styles.css").toExternalForm();
             scene.getStylesheets().add(cssFile);
+
+            PlannerApp.getInstance().setBackground((Region) scene.getRoot());
         }
     }
 
@@ -203,12 +233,24 @@ public class EventDialog extends Dialog<TimeSlot> {
         }
     }
 
+
     /** 🔹 Show Alert */
     private void showAlert(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
+        Alert alert = new Alert(Alert.AlertType.INFORMATION); // Change to INFO for a cleaner look
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);
+
+        // Style the DialogPane
+        DialogPane dialogPane = alert.getDialogPane();
+        PlannerApp.getInstance().setBackground(dialogPane); // ✅ Apply background image if available
+        dialogPane.getStyleClass().add("custom-alert"); // ✅ Use CSS for better styling
+
+        // Apply CSS styles
+        String cssFile = getClass().getResource("styles.css").toExternalForm();
+        dialogPane.getStylesheets().add(cssFile);
+
         alert.showAndWait();
     }
+
 }

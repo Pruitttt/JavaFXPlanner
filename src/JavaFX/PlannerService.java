@@ -2,7 +2,10 @@ package JavaFX;
 
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.TextInputDialog;
+import javafx.scene.image.Image;
+import javafx.scene.layout.*;
 
 import java.io.*;
 import java.nio.file.*;
@@ -70,6 +73,18 @@ public class PlannerService {
         dialog.setHeaderText("Enter New Class Name:");
         dialog.setContentText("Class:");
 
+        // Get the DialogPane
+        DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.lookup(".header-panel").setStyle("-fx-background-color: transparent;");
+
+        // ✅ Call setBackground() from PlannerApp
+        PlannerApp.getInstance().setBackground(dialogPane);
+
+        // Apply styles.css if needed
+        String cssFile = getClass().getResource("styles.css").toExternalForm();
+        dialogPane.getStylesheets().add(cssFile);
+
+        // Show dialog and process input
         dialog.showAndWait().ifPresent(className -> {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(CLASS_FILE, true))) {
                 writer.write(className);
@@ -80,6 +95,9 @@ public class PlannerService {
             }
         });
     }
+
+
+
 
 
 
@@ -193,6 +211,7 @@ public class PlannerService {
         return null;
     }
 
+
     public void addEvent() {
         EventDialog dialog = new EventDialog(loadClasses());
 
@@ -206,6 +225,7 @@ public class PlannerService {
         });
 
     }
+
 
 
     public void addEventForClass(String className) {

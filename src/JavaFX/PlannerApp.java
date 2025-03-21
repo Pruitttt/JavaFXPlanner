@@ -8,13 +8,16 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-
+import javafx.scene.layout.*;
+import javafx.scene.image.Image;
 import javafx.stage.Window;
 
 
@@ -28,12 +31,17 @@ public class PlannerApp extends Application {
     public void start(Stage primaryStage) {
         instance = this;
 
+
         // Initialize UI first to avoid NullPointerException
         VBox root = new VBox(10);
         root.setPadding(new Insets(10));
+        setBackground(root);
+
 
         // Initialize the list BEFORE updating it
         upcomingEventsList = new ListView<>();
+
+
 
         // Register a listener for updates
         plannerService.addUpdateListener(() -> Platform.runLater(this::updateUpcomingEvents));
@@ -108,6 +116,37 @@ public class PlannerApp extends Application {
         primaryStage.show();
     }
 
+    public static PlannerApp getInstance() {
+        return instance;
+    }
+
+
+    public void setBackground(Region root) {
+        //String imagePath = getClass().getResource("/JavaFX/pexels-pixabay-531880.jpg").toExternalForm();
+        String imagePath = getClass().getResource("/JavaFX/pexels-deepu-b-iyer-40465.jpg").toExternalForm();
+
+        // Load image safely
+        Image backgroundImage = new Image(imagePath);
+        if (backgroundImage.isError()) {
+            System.err.println("Failed to load background image.");
+            return;
+        }
+
+        // Create BackgroundImage
+        BackgroundImage background = new BackgroundImage(
+                backgroundImage,
+                BackgroundRepeat.NO_REPEAT,
+                BackgroundRepeat.NO_REPEAT,
+                BackgroundPosition.CENTER,
+                new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, true, true)
+        );
+
+        // Apply background image
+        root.setBackground(new Background(background));
+    }
+
+
+
 
     public static void refreshPastEventsWindow() {
         Platform.runLater(() -> {
@@ -147,6 +186,7 @@ public class PlannerApp extends Application {
             }
         }
     }
+
 
 
 
@@ -202,8 +242,8 @@ public class PlannerApp extends Application {
         }
 
         VBox vbox = new VBox(10, classLabel, dateLabel, descLabel, buttonBox);
+        PlannerApp.getInstance().setBackground(vbox);
         vbox.setPadding(new Insets(10));
-        vbox.getStyleClass().add("window-container"); // Apply frosted-glass style
 
         dialog.getDialogPane().setContent(vbox);
 
@@ -410,6 +450,8 @@ public class PlannerApp extends Application {
         VBox vbox = new VBox(10);
         vbox.setPadding(new Insets(10));
 
+        setBackground(vbox);
+
         // 🎯 ListView to display past events
         ListView<TimeSlot> listView = new ListView<>();
         listView.getItems().setAll(pastEvents);
@@ -515,7 +557,6 @@ public class PlannerApp extends Application {
         });
     }
 
-
     /** Deletes a class */
     private void deleteClass() {
 
@@ -549,10 +590,11 @@ public class PlannerApp extends Application {
         Stage classStage = new Stage();
         openWindows.add(classStage); // Track this window
 
-        VBox vbox = new VBox(5); // Reduce spacing between elements
+        VBox vbox = new VBox(5);// Reduce spacing between elements
+        setBackground(vbox);
         vbox.setPadding(new Insets(5)); // Reduce padding to bring border closer
 
-        // 🎯 ListView for Class Selection
+        // ListView for Class Selection
         ListView<String> classListView = new ListView<>();
         classListView.getItems().addAll(classList);
 
@@ -580,9 +622,6 @@ public class PlannerApp extends Application {
             classListView.getItems().setAll(plannerService.loadClasses()); // Refresh ListView
         });
 
-        // Apply CSS Style
-        vbox.getStyleClass().add("window-container");
-
         // Add Components to Layout
         Label classes = new Label("Classes: ");
         VBox classBtn = new VBox(addClassBtn);
@@ -593,8 +632,7 @@ public class PlannerApp extends Application {
 
         // Reduce window size to match content
         Scene scene = new Scene(vbox);
-        classStage.setMinWidth(300); // Reduce width
-        classStage.setMinHeight(350); // Adjust height dynamically
+        classStage.sizeToScene(); // Adjusts window size to fit content
 
         // Attach styles.css
         String cssFile = getClass().getResource("styles.css").toExternalForm();
@@ -615,7 +653,6 @@ public class PlannerApp extends Application {
 
     /** Shows events filtered by class */
     private void showEventsByClass(String className) {
-
         List<TimeSlot> allEvents = plannerService.loadEvents();
         List<TimeSlot> classEvents = new ArrayList<>();
 
@@ -630,43 +667,80 @@ public class PlannerApp extends Application {
 
         VBox vbox = new VBox(10);
         vbox.setPadding(new Insets(10));
+        setBackground(vbox);
 
-        // Create Event TableView
-        TableView<TimeSlot> tableView = new TableView<>();
+        // 🟢 Define a reasonable width that fits within the window
 
-        TableColumn<TimeSlot, String> nameCol = new TableColumn<>("Event Name");
-        nameCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getEventName()));
+        // 🟢 Create headers and center text
+        Label nameHeader = new Label("Event Name");
+        Label dateHeader = new Label("Date");
+        Label descHeader = new Label("Description");
 
-        TableColumn<TimeSlot, String> dateCol = new TableColumn<>("Date");
-        dateCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getDateTimeFormatted()));
-        dateCol.setComparator((date1, date2) -> {
-            LocalDateTime dt1 = LocalDateTime.parse(date1, DateTimeFormatter.ofPattern("yyyy-MM-dd h:mm a"));
-            LocalDateTime dt2 = LocalDateTime.parse(date2, DateTimeFormatter.ofPattern("yyyy-MM-dd h:mm a"));
-            return dt1.compareTo(dt2); // Sorts from soonest to latest
+// 🟢 Style headers for better alignment
+        nameHeader.setAlignment(Pos.CENTER);
+        dateHeader.setAlignment(Pos.CENTER);
+        descHeader.setAlignment(Pos.CENTER);
+
+        nameHeader.setMaxWidth(Double.MAX_VALUE);
+        dateHeader.setMaxWidth(Double.MAX_VALUE);
+        descHeader.setMaxWidth(Double.MAX_VALUE);
+
+        nameHeader.getStyleClass().add("list-header");
+        dateHeader.getStyleClass().add("list-header");
+        descHeader.getStyleClass().add("list-header");
+
+// 🟢 Create ListViews
+        ListView<String> nameList = new ListView<>();
+        ListView<String> dateList = new ListView<>();
+        ListView<String> descList = new ListView<>();
+
+// 🟢 Ensure all ListViews have the same size
+        double listWidth = 180;
+        double listHeight = 300;
+
+        nameList.setPrefSize(listWidth, listHeight);
+        dateList.setPrefSize(listWidth, listHeight);
+        descList.setPrefSize(listWidth, listHeight);
+
+        nameList.setMaxSize(listWidth, listHeight);
+        dateList.setMaxSize(listWidth, listHeight);
+        descList.setMaxSize(listWidth, listHeight);
+
+// 🟢 Populate ListViews
+        for (TimeSlot event : classEvents) {
+            nameList.getItems().add(event.getEventName());
+            dateList.getItems().add(event.getDateTimeFormatted());
+            descList.getItems().add(event.getDescription());
+        }
+
+// 🟢 Synchronize Selection & Hover
+        synchronizeListViews(nameList, dateList, descList, classEvents);
+
+// 🟢 Wrap ListViews in VBox to ensure headers are centered
+        VBox nameColumn = new VBox(5, nameHeader, nameList);
+        VBox dateColumn = new VBox(5, dateHeader, dateList);
+        VBox descColumn = new VBox(5, descHeader, descList);
+
+        nameColumn.setAlignment(Pos.TOP_CENTER);
+        dateColumn.setAlignment(Pos.TOP_CENTER);
+        descColumn.setAlignment(Pos.TOP_CENTER);
+
+// 🟢 Put everything inside an HBox
+        HBox listContainer = new HBox(1, nameColumn, dateColumn, descColumn);
+        listContainer.setAlignment(Pos.CENTER);
+
+
+        // 🟢 Add Event Button
+        Button addEventBtn = new Button("Add Event");
+        addEventBtn.setPrefWidth(200);
+        addEventBtn.getStyleClass().add("button-primary");
+        addEventBtn.setOnAction(e -> {
+            plannerService.addEventForClass(className); // Add event
+            refreshListViews(nameList, dateList, descList, className);
+            updateUpcomingEvents();
         });
 
-        TableColumn<TimeSlot, String> descCol = new TableColumn<>("Description");
-        descCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getDescription()));
-
-        // Set the column to sort in ascending order by default
-        tableView.getSortOrder().add(dateCol);
-        dateCol.setSortable(true);
-
-        tableView.getColumns().addAll(nameCol, dateCol, descCol);
-        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        tableView.getItems().addAll(classEvents); // Populate table
-
-        // Double-click to View Event Details
-        tableView.setOnMouseClicked(event -> {
-            if (event.getClickCount() == 2) {
-                TimeSlot selectedEvent = tableView.getSelectionModel().getSelectedItem();
-                if (selectedEvent != null) {
-                    showEventDetails(selectedEvent);
-                }
-            }
-        });
-
-        // Delete Class Button (Small, Right-Aligned)
+        // 🟢 Delete Class Button
         Button deleteClassBtn = new Button("Delete Class");
         deleteClassBtn.setPrefWidth(200);
         deleteClassBtn.getStyleClass().add("button-danger");
@@ -679,50 +753,19 @@ public class PlannerApp extends Application {
             Optional<ButtonType> result = alert.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
                 plannerService.deleteClass(className);
-
-                // Close the current class window
                 classStage.close();
-
-                // Refresh the upcoming events list in the main menu
                 updateUpcomingEvents();
-
-                // Refresh the class selection window if it's open
                 refreshClassSelectionWindow();
             }
         });
 
-
-
-        // Title + Delete Button (in HBox)
-        Label titleLabel = new Label("Events for " + className + ":");
-        HBox titleRow = new HBox(10, titleLabel);
-        titleRow.setAlignment(Pos.CENTER_LEFT);
-
-        // Add Event Button (Below Table)
-        Button addEventBtn = new Button("Add Event");
-        addEventBtn.setPrefWidth(200);
-        addEventBtn.getStyleClass().add("button-primary");
-        addEventBtn.setOnAction(e -> {
-            plannerService.addEventForClass(className); // Add event to the class
-
-            // Refresh the class-specific events list
-            tableView.getItems().setAll(plannerService.loadEventsForClass(className));
-
-            // Refresh the upcoming events list in the main menu
-            updateUpcomingEvents();
-        });
-
-
         HBox buttonRow = new HBox(10, addEventBtn, deleteClassBtn);
         buttonRow.setAlignment(Pos.CENTER);
 
-        // Apply CSS Style
-        vbox.getStyleClass().add("window-container");
+        // 🟢 Add Components to Layout
+        vbox.getChildren().addAll(new Label("Events for " + className + ":"), listContainer, buttonRow);
 
-        // Add Components to Layout
-        vbox.getChildren().addAll(titleRow, tableView, buttonRow);
-
-        Scene scene = new Scene(vbox, 500, 400);
+        Scene scene = new Scene(vbox, 550, 400);
 
         // Attach styles.css
         String cssFile = getClass().getResource("styles.css").toExternalForm();
@@ -730,12 +773,11 @@ public class PlannerApp extends Application {
 
         classStage.setTitle(className + " Events");
         classStage.setScene(scene);
-
-        // Ensure the window is tracked and removed when closed
         classStage.setOnCloseRequest(e -> openWindows.remove(classStage));
 
         classStage.show();
     }
+
 
     private void refreshClassSelectionWindow() {
         for (Stage stage : openWindows) {
@@ -751,6 +793,96 @@ public class PlannerApp extends Application {
                     }
                 }
             }
+        }
+    }
+
+    private void synchronizeListViews(ListView<String> nameList, ListView<String> dateList, ListView<String> descList, List<TimeSlot> classEvents) {
+        List<ListView<String>> listViews = List.of(nameList, dateList, descList);
+
+        // 🟢 Synchronize Selection Across Lists
+        for (ListView<String> listView : listViews) {
+            listView.getSelectionModel().selectedIndexProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal.intValue() != -1) { // Ensure valid index
+                    for (ListView<String> lv : listViews) {
+                        if (lv != listView) {
+                            lv.getSelectionModel().clearSelection();
+                            lv.getSelectionModel().select(newVal.intValue());
+                        }
+                    }
+                }
+            });
+        }
+
+        // 🟢 Improved Hover Synchronization
+        for (ListView<String> listView : listViews) {
+            listView.setCellFactory(lv -> {
+                ListCell<String> cell = new ListCell<>() {
+                    @Override
+                    protected void updateItem(String item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty || item == null) {
+                            setText(null);
+                            setStyle(""); // Reset styling
+                        } else {
+                            setText(item);
+                        }
+                    }
+                };
+
+                // 🟢 Add real-time hover effect
+                cell.setOnMouseEntered(event -> {
+                    int index = cell.getIndex();
+                    if (index != -1) {
+                        for (ListView<String> lz : listViews) {
+                            lv.getSelectionModel().clearSelection();
+                            lv.getSelectionModel().select(index);
+                        }
+                    }
+                });
+
+                cell.setOnMouseExited(event -> {
+                    for (ListView<String> lc : listViews) {
+                        lv.getSelectionModel().clearSelection();
+                    }
+                });
+
+                return cell;
+            });
+        }
+
+        // 🟢 Restore Double-Click Functionality for Viewing Event Details
+        for (ListView<String> listView : listViews) {
+            listView.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2) { // Double-click opens event details
+                    int selectedIndex = listView.getSelectionModel().getSelectedIndex();
+                    if (selectedIndex >= 0 && selectedIndex < classEvents.size()) {
+                        showEventDetails(classEvents.get(selectedIndex)); // Open event details
+                    }
+                }
+            });
+        }
+    }
+
+
+    // 🟢 Helper Method: Determine Which Row is Being Hovered Over
+    private int getHoveredIndex(ListView<String> listView, double mouseY) {
+        int cellHeight = 30; // Adjust based on your ListView row height
+        return (int) (mouseY / cellHeight);
+    }
+
+
+
+    private void refreshListViews(ListView<String> nameList, ListView<String> dateList, ListView<String> descList, String className) {
+        List<TimeSlot> updatedEvents = plannerService.loadEventsForClass(className);
+
+        nameList.getItems().clear();
+        dateList.getItems().clear();
+        descList.getItems().clear();
+
+        for (TimeSlot event : updatedEvents) {
+            nameList.getItems().add(event.getEventName());
+            dateList.getItems().add(event.getDateTimeFormatted());
+            descList.getItems().add(event.getDescription());
         }
     }
 
