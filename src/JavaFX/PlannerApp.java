@@ -16,6 +16,8 @@ import javafx.stage.Stage;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import javafx.scene.layout.*;
 import javafx.scene.image.Image;
 import javafx.stage.Window;
@@ -484,7 +486,6 @@ public class PlannerApp extends Application {
 
         // 🗑️ "Clear All Past Events" Button
         Button clearPastEventsBtn = new Button("Clear All Past Events");
-        clearPastEventsBtn.setStyle("-fx-background-color: #ff4c4c; -fx-text-fill: white; -fx-font-weight: bold;");
 
         clearPastEventsBtn.setOnAction(e -> {
             Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
@@ -798,22 +799,24 @@ public class PlannerApp extends Application {
 
     private void synchronizeListViews(ListView<String> nameList, ListView<String> dateList, ListView<String> descList, List<TimeSlot> classEvents) {
         List<ListView<String>> listViews = List.of(nameList, dateList, descList);
+        AtomicBoolean syncing = new AtomicBoolean(false); // Prevent recursion
 
-        // 🟢 Synchronize Selection Across Lists
+        // 🟢 Synchronize Selection Across Lists Safely
         for (ListView<String> listView : listViews) {
             listView.getSelectionModel().selectedIndexProperty().addListener((obs, oldVal, newVal) -> {
-                if (newVal.intValue() != -1) { // Ensure valid index
-                    for (ListView<String> lv : listViews) {
-                        if (lv != listView) {
-                            lv.getSelectionModel().clearSelection();
-                            lv.getSelectionModel().select(newVal.intValue());
-                        }
+                if (syncing.get() || newVal.intValue() == -1) return;
+                syncing.set(true);
+                for (ListView<String> lv : listViews) {
+                    if (lv != listView) {
+                        lv.getSelectionModel().clearSelection();
+                        lv.getSelectionModel().select(newVal.intValue());
                     }
                 }
+                syncing.set(false);
             });
         }
 
-        // 🟢 Improved Hover Synchronization
+        // 🟢 Hover Synchronization with Correct Index
         for (ListView<String> listView : listViews) {
             listView.setCellFactory(lv -> {
                 ListCell<String> cell = new ListCell<>() {
@@ -822,46 +825,50 @@ public class PlannerApp extends Application {
                         super.updateItem(item, empty);
                         if (empty || item == null) {
                             setText(null);
-                            setStyle(""); // Reset styling
+                            setStyle("");
                         } else {
                             setText(item);
                         }
                     }
                 };
 
-                // 🟢 Add real-time hover effect
                 cell.setOnMouseEntered(event -> {
                     int index = cell.getIndex();
-                    if (index != -1) {
-                        for (ListView<String> lz : listViews) {
-                            lv.getSelectionModel().clearSelection();
-                            lv.getSelectionModel().select(index);
+                    if (index != -1 && index < listView.getItems().size()) {
+                        syncing.set(true); // Lock to prevent recursion
+                        for (ListView<String> lv2 : listViews) {
+                            lv2.getSelectionModel().clearSelection();
+                            lv2.getSelectionModel().select(index);
                         }
+                        syncing.set(false);
                     }
                 });
 
                 cell.setOnMouseExited(event -> {
-                    for (ListView<String> lc : listViews) {
-                        lv.getSelectionModel().clearSelection();
+                    syncing.set(true);
+                    for (ListView<String> lv2 : listViews) {
+                        lv2.getSelectionModel().clearSelection();
                     }
+                    syncing.set(false);
                 });
 
                 return cell;
             });
         }
 
-        // 🟢 Restore Double-Click Functionality for Viewing Event Details
+        // 🟢 Double-click to show event details
         for (ListView<String> listView : listViews) {
             listView.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2) { // Double-click opens event details
+                if (event.getClickCount() == 2) {
                     int selectedIndex = listView.getSelectionModel().getSelectedIndex();
                     if (selectedIndex >= 0 && selectedIndex < classEvents.size()) {
-                        showEventDetails(classEvents.get(selectedIndex)); // Open event details
+                        showEventDetails(classEvents.get(selectedIndex));
                     }
                 }
             });
         }
     }
+
 
 
     // 🟢 Helper Method: Determine Which Row is Being Hovered Over

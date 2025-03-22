@@ -310,6 +310,7 @@ public class PlannerService {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        notifyUpdateListeners();
     }
 
     public void addUpdateListener(Runnable listener) {
