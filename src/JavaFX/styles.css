@@ -307,7 +307,8 @@
 
 /* Style the ScrollPane background */
 .scroll-pane {
-    -fx-background-color: transparent;
+    -fx-background-color: rgba(37, 87, 85, 0.38);
+    -fx-background-radius: 15;
     -fx-border-color: rgba(255, 255, 255, 0.5);
     -fx-border-radius: 10;
     -fx-padding: 5;

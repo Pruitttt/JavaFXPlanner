@@ -199,70 +199,95 @@ public class PlannerApp extends Application {
             return;
         }
 
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Event Details");
-        dialog.setHeaderText("Details for " + event.getEventName());
+        Stage detailStage = new Stage();
+        detailStage.setTitle("Event Details");
 
-        Label classLabel = new Label("Class: " + event.getClassName());
-        Label dateLabel = new Label("Date: " + event.getDateTimeFormatted());
-        Label descLabel = new Label("Description: " + event.getDescription());
-        if (event.getDescription().equals("")) {
-            descLabel.setText("Description: Not Applicable");
-        }
+        // 🔹 Title Label (emoji removed for clean look)
+        Label titleLabel = new Label("Event Details");
+        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+        titleLabel.getStyleClass().add("dialog-label");
 
+// 🔹 GridPane for structured layout
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(12);
+        grid.setPadding(new Insets(10));
+
+        Label classKey = new Label("Class:");
+        Label dateKey = new Label("Date:");
+        Label descKey = new Label("Description:");
+
+        Label classValue = new Label(event.getClassName());
+        Label dateValue = new Label(event.getDateTimeFormatted());
+
+        String descriptionText = event.getDescription().isEmpty() ? "Not Applicable" : event.getDescription();
+        Label descValue = new Label(descriptionText);
+        descValue.setWrapText(true);
+        descValue.setMaxWidth(250); // 👈 Keeps wrapping within bounds
+        descValue.getStyleClass().add("dialog-label");
+
+        classKey.getStyleClass().add("dialog-label");
+        dateKey.getStyleClass().add("dialog-label");
+        descKey.getStyleClass().add("dialog-label");
+        classValue.getStyleClass().add("dialog-label");
+        dateValue.getStyleClass().add("dialog-label");
+
+        grid.add(classKey, 0, 0);
+        grid.add(classValue, 1, 0);
+        grid.add(dateKey, 0, 1);
+        grid.add(dateValue, 1, 1);
+        grid.add(descKey, 0, 2);
+        grid.add(descValue, 1, 2);
+
+
+        // 🔹 Action Buttons
         Button deleteButton = new Button("Delete");
+        deleteButton.setPrefWidth(120);
         deleteButton.setOnAction(e -> {
             boolean deleted = confirmAndDeleteEvent(event);
             if (deleted) {
-                Platform.runLater(() -> {
-                    dialog.setResult(ButtonType.CLOSE);
-                    dialog.close();
-                });
+                detailStage.close();
             }
         });
 
         HBox buttonBox = new HBox(10);
-        buttonBox.setAlignment(Pos.CENTER);
-        HBox.setHgrow(deleteButton, Priority.ALWAYS);
+        buttonBox.setAlignment(Pos.CENTER_RIGHT);
+        buttonBox.getChildren().add(deleteButton);
 
-        // Check if the event is in the past
         if (event.getDateTime().isAfter(LocalDateTime.now())) {
             Button modifyButton = new Button("Modify");
+            modifyButton.setPrefWidth(120);
             modifyButton.setOnAction(e -> {
                 modifyEvent(event);
-                dialog.close();
+                detailStage.close();
             });
-
-            modifyButton.setPrefWidth(120);
-            deleteButton.setPrefWidth(120);
-
-            HBox.setHgrow(modifyButton, Priority.ALWAYS);
-            buttonBox.getChildren().addAll(modifyButton, deleteButton);
-        } else {
-            deleteButton.setPrefWidth(120);
-            buttonBox.getChildren().add(deleteButton);
+            buttonBox.getChildren().add(0, modifyButton);
         }
 
-        VBox vbox = new VBox(10, classLabel, dateLabel, descLabel, buttonBox);
-        PlannerApp.getInstance().setBackground(vbox);
-        vbox.setPadding(new Insets(10));
+        // 🔹 Translucent background
+        Region translucentBox = new Region();
+        translucentBox.setId("backgroundBox");
+        translucentBox.prefWidthProperty().bind(grid.widthProperty().add(40));
+        translucentBox.prefHeightProperty().bind(grid.heightProperty().add(80));
+        translucentBox.setMouseTransparent(true);
 
-        dialog.getDialogPane().setContent(vbox);
+        VBox content = new VBox(15, titleLabel, grid, buttonBox);
+        content.setPadding(new Insets(20));
+        content.setAlignment(Pos.TOP_LEFT);
 
-        // **Apply styles.css to the dialog**
-        Scene scene = dialog.getDialogPane().getScene();
+        StackPane stack = new StackPane(translucentBox, content);
+        stack.setPadding(new Insets(20));
+        PlannerApp.getInstance().setBackground(stack); // ✅ Stretch background
+
+        Scene scene = new Scene(stack, 450, 350);
         String cssFile = getClass().getResource("styles.css").toExternalForm();
         scene.getStylesheets().add(cssFile);
 
-        // Remove Close button from the UI
-        dialog.getDialogPane().getButtonTypes().clear();
-
-        // Handle "X" button (window close request)
-        Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
-        stage.setOnCloseRequest(event1 -> dialog.close());
-
-        dialog.showAndWait();
+        detailStage.setScene(scene);
+        detailStage.show();
     }
+
+
 
 
 
@@ -296,6 +321,7 @@ public class PlannerApp extends Application {
         openWindows.add(modifyStage); // Track this window
 
         VBox vbox = new VBox(10);
+        setBackground(vbox);
         vbox.setPadding(new Insets(10));
 
         Label titleLabel = new Label("Modify Event Details");
