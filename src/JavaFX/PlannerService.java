@@ -1,16 +1,10 @@
 package JavaFX;
 
 import javafx.application.Platform;
-import javafx.scene.control.Alert;
-import javafx.scene.control.DialogPane;
-import javafx.scene.control.TextInputDialog;
-import javafx.scene.image.Image;
-import javafx.scene.layout.*;
 
 import java.io.*;
 import java.nio.file.*;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -25,10 +19,11 @@ public class PlannerService {
     public PlannerService() {
         ensureFileExists(EVENT_FILE);
         ensureFileExists(CLASS_FILE);
+        ensureFileExists(PAST_EVENTS_FILE);
     }
 
     public List<TimeSlot> loadEventsForClass(String className) {
-        List<TimeSlot> allEvents = loadEvents(); // Load all events from planner.txt
+        List<TimeSlot> allEvents = loadEvents();
         List<TimeSlot> classEvents = new ArrayList<>();
 
         for (TimeSlot event : allEvents) {
@@ -39,9 +34,6 @@ public class PlannerService {
 
         return classEvents;
     }
-
-
-
 
     // Ensures the file exists, creates it if missing
     private void ensureFileExists(String fileName) {
@@ -66,44 +58,29 @@ public class PlannerService {
         return classes;
     }
 
-    // Adds a new class to classes.txt
-    public void addClass() {
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Add Class");
-        dialog.setHeaderText("Enter New Class Name:");
-        dialog.setContentText("Class:");
-
-        // Get the DialogPane
-        DialogPane dialogPane = dialog.getDialogPane();
-        dialogPane.lookup(".header-panel").setStyle("-fx-background-color: transparent;");
-
-        // ✅ Call setBackground() from PlannerApp
-        PlannerApp.getInstance().setBackground(dialogPane);
-
-        // Apply styles.css if needed
-        String cssFile = getClass().getResource("styles.css").toExternalForm();
-        dialogPane.getStylesheets().add(cssFile);
-
-        // Show dialog and process input
-        dialog.showAndWait().ifPresent(className -> {
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(CLASS_FILE, true))) {
-                writer.write(className);
-                writer.newLine();
-                showAlert("Success", "Class '" + className + "' added.");
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
+    // Adds a new class to classes.txt, returns the added class name or null if cancelled
+    public String addClass() {
+        // This will be handled in PlannerApp via a UI callback
+        // For now, we'll simulate the logic and return the class name
+        // PlannerApp will call this and handle the UI input
+        return null; // Placeholder; actual implementation will be in PlannerApp
     }
 
-
-
-
-
-
+    public void addNewClass(String className) {
+        List<String> classes = loadClasses();
+        if (classes.contains(className)) {
+            return;
+        }
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(CLASS_FILE, true))) {
+            writer.write(className);
+            writer.newLine();
+            notifyUpdateListeners();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     public void movePastEventsToStorage() {
-
         List<TimeSlot> allEvents = loadEvents();
         List<TimeSlot> upcomingEvents = new ArrayList<>();
         List<TimeSlot> pastEvents = new ArrayList<>();
@@ -111,6 +88,10 @@ public class PlannerService {
         LocalDateTime now = LocalDateTime.now();
 
         for (TimeSlot event : allEvents) {
+            if (event.getDateTime() == null) {
+                System.err.println("movePastEventsToStorage: Event with null dateTime: " + event.getEventName());
+                continue;
+            }
             if (event.getDateTime().isBefore(now)) {
                 pastEvents.add(event);
             } else {
@@ -118,7 +99,6 @@ public class PlannerService {
             }
         }
 
-        //  Save past events separately
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(PAST_EVENTS_FILE, true))) {
             for (TimeSlot event : pastEvents) {
                 writer.write(event.toString());
@@ -128,26 +108,25 @@ public class PlannerService {
             e.printStackTrace();
         }
 
-        //  Save updated upcoming events
         saveEvents(upcomingEvents);
-
-
-        //  Force UI update
         notifyUpdateListeners();
-        PlannerApp.refreshPastEventsWindow();
     }
 
-
     // Saves the event to planner.txt
-    private void saveEvent(TimeSlot event) {
+    public void saveEvent(TimeSlot event) {
+        if (event == null) {
+            System.err.println("saveEvent: Event is null");
+            return;
+        }
+        if (event.getDateTime() == null) {
+            System.err.println("saveEvent: Event dateTime is null for event: " + event.getEventName());
+            return;
+        }
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(EVENT_FILE, true))) {
+            System.out.println("Saving event: " + event.toString());
             writer.write(event.toString());
             writer.newLine();
-
-            // Immediately move past events when a new event is added
             movePastEventsToStorage();
-
-            // Notify UI to refresh
             notifyUpdateListeners();
         } catch (IOException e) {
             e.printStackTrace();
@@ -156,14 +135,12 @@ public class PlannerService {
 
     public void clearPastEvents() {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(PAST_EVENTS_FILE, false))) {
-            // Overwrites past_events.txt with an empty file
             writer.write("");
         } catch (IOException e) {
             e.printStackTrace();
         }
+        notifyUpdateListeners();
     }
-
-
 
     // Loads all events from planner.txt
     public List<TimeSlot> loadEvents() {
@@ -171,9 +148,11 @@ public class PlannerService {
         try {
             List<String> lines = Files.readAllLines(Paths.get(EVENT_FILE));
             for (String line : lines) {
+                if (line.trim().isEmpty()) continue;
                 try {
                     events.add(TimeSlot.fromString(line));
                 } catch (Exception e) {
+                    System.err.println("Failed to parse event: " + line);
                     e.printStackTrace();
                 }
             }
@@ -190,14 +169,16 @@ public class PlannerService {
         LocalDateTime now = LocalDateTime.now();
 
         for (TimeSlot event : allEvents) {
+            if (event.getDateTime() == null) {
+                System.err.println("getUpcomingEvents: Event with null dateTime: " + event.getEventName());
+                continue;
+            }
             if (event.getDateTime().isAfter(now)) {
                 upcomingEvents.add(event);
             }
         }
 
-        //  Sort the upcoming events by date (soonest first)
         upcomingEvents.sort(Comparator.comparing(TimeSlot::getDateTime));
-
         return upcomingEvents;
     }
 
@@ -211,38 +192,14 @@ public class PlannerService {
         return null;
     }
 
-
-    public void addEvent() {
-        EventDialog dialog = new EventDialog(loadClasses());
-
-        dialog.showAndWait().ifPresent(event -> {  // Only runs if event is confirmed
-
-            saveEvent(event);
-
-            movePastEventsToStorage(); // Now only moves past events AFTER event is confirmed
-
-            notifyUpdateListeners(); // Now only updates UI AFTER event is added
-        });
-
+    // Returns an EventDialog for adding an event
+    public EventDialog createEventDialog() {
+        return new EventDialog(loadClasses());
     }
 
-
-
-    public void addEventForClass(String className) {
-        EventDialog dialog = new EventDialog(loadClasses(), className);
-
-        dialog.showAndWait().ifPresent(event -> {  // Only runs if event is confirmed
-
-            saveEvent(event);
-
-            movePastEventsToStorage(); //  Now only moves past events AFTER event is confirmed
-
-            notifyUpdateListeners(); //  Now only updates UI AFTER event is added
-        });
+    public EventDialog createEventDialogForClass(String className) {
+        return new EventDialog(loadClasses(), className);
     }
-
-
-
 
     // Deletes an event
     public void deleteEvent(String eventName, String className) {
@@ -260,57 +217,46 @@ public class PlannerService {
 
         if (found) {
             saveEvents(updatedEvents);
-
-            //  Ensure past events are checked after deletion
             movePastEventsToStorage();
-
-            //  Notify UI
             notifyUpdateListeners();
         }
     }
 
-
-
     public TimeSlot getEventByDetails(String className, String eventName, String dateTime) {
-        List<TimeSlot> events = loadEvents(); // Load all events
-
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMMM d, yyyy");
-
+        List<TimeSlot> events = loadEvents();
         for (TimeSlot event : events) {
             String formattedEventDate = event.getDateTimeFormatted();
-
             if (event.getClassName().equalsIgnoreCase(className) &&
                     event.getEventName().equalsIgnoreCase(eventName) &&
                     formattedEventDate.equals(dateTime)) {
                 return event;
             }
         }
-
         return null;
     }
-
 
     public void updateEvent(TimeSlot oldEvent, TimeSlot newEvent) {
         List<TimeSlot> events = loadEvents();
         boolean found = false;
 
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(EVENT_FILE, false))) { // Overwrites file
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(EVENT_FILE, false))) {
             for (TimeSlot event : events) {
                 if (event.getClassName().equals(oldEvent.getClassName()) &&
                         event.getEventName().equals(oldEvent.getEventName()) &&
                         event.getDateTimeFormatted().equals(oldEvent.getDateTimeFormatted())) {
-
-                    writer.write(newEvent.toString()); // Replace the old event with the new one
+                    writer.write(newEvent.toString());
                     found = true;
                 } else {
-                    writer.write(event.toString()); // Keep other events unchanged
+                    writer.write(event.toString());
                 }
                 writer.newLine();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        notifyUpdateListeners();
+        if (found) {
+            notifyUpdateListeners();
+        }
     }
 
     public void addUpdateListener(Runnable listener) {
@@ -319,13 +265,9 @@ public class PlannerService {
 
     private void notifyUpdateListeners() {
         for (Runnable listener : updateListeners) {
-            Platform.runLater(() -> {
-                listener.run();
-            });
+            Platform.runLater(listener::run);
         }
     }
-
-
 
     // Deletes a class
     public void deleteClass(String className) {
@@ -335,10 +277,8 @@ public class PlannerService {
             return;
         }
 
-        // Remove the class from the class list
         classes.remove(className);
 
-        // Save updated class list
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(CLASS_FILE))) {
             for (String c : classes) {
                 writer.write(c);
@@ -348,90 +288,62 @@ public class PlannerService {
             e.printStackTrace();
         }
 
-        // Remove all events associated with this class
         List<TimeSlot> allEvents = loadEvents();
         List<TimeSlot> updatedEvents = allEvents.stream()
                 .filter(event -> !event.getClassName().equalsIgnoreCase(className))
                 .collect(Collectors.toList());
 
-        for (TimeSlot event : allEvents) {
-            if (!event.getClassName().equalsIgnoreCase(className)) {
-                updatedEvents.add(event); // Keep only events that do not belong to the deleted class
-            }
-        }
-
-        // Save only the remaining events back to planner.txt
         saveEvents(updatedEvents);
+        notifyUpdateListeners();
     }
 
     public boolean classExists(String className) {
-        List<String> classes = loadClasses(); // Load existing classes
-        return classes.contains(className); // Check if the class is still present
-    }
-
-
-    public void addNewClass(String className) {
-
         List<String> classes = loadClasses();
-
-        //  Ensure the class isn't already in the list
-        if (classes.contains(className)) {
-            return;
-        }
-
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(CLASS_FILE, true))) {
-            writer.write(className);
-            writer.newLine();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        return classes.contains(className);
     }
 
-    public void moveEventToFuture(TimeSlot oldEvent, TimeSlot updatedEvent) {
+    public void moveEventToFuture(TimeSlot oldEvent, TimeSlot newEvent) {
         List<TimeSlot> pastEvents = loadPastEvents();
         List<TimeSlot> futureEvents = loadEvents();
 
-        // Remove the old event from past events
         pastEvents.removeIf(e -> e.getEventName().equals(oldEvent.getEventName()) && e.getClassName().equals(oldEvent.getClassName()));
+        futureEvents.add(newEvent);
 
-        // Add updated event to future events list
-        futureEvents.add(updatedEvent);
-
-        // Save changes
-        savePastEvents(pastEvents); // Update past_events.txt
-        saveEvents(futureEvents);   // Update planner.txt
+        savePastEvents(pastEvents);
+        saveEvents(futureEvents);
+        notifyUpdateListeners();
     }
 
     public void savePastEvents(List<TimeSlot> pastEvents) {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter("past_events.txt"))) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(PAST_EVENTS_FILE))) {
             for (TimeSlot event : pastEvents) {
-                writer.write(event.toString()); // Ensure `toFileString()` properly formats event data
+                writer.write(event.toString());
                 writer.newLine();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
-
 
     // Saves the updated list of events
     private void saveEvents(List<TimeSlot> events) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(EVENT_FILE))) {
             for (TimeSlot event : events) {
+                if (event.getDateTime() == null) {
+                    System.err.println("saveEvents: Event with null dateTime: " + event.getEventName());
+                    continue;
+                }
                 writer.write(event.toString());
                 writer.newLine();
             }
-
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     public List<String> getEventNames() {
-
         List<String> eventNames = new ArrayList<>();
-        List<TimeSlot> events = loadEvents(); // Load all events
+        List<TimeSlot> events = loadEvents();
 
         for (TimeSlot event : events) {
             eventNames.add(event.getEventName());
@@ -442,27 +354,15 @@ public class PlannerService {
 
     public List<TimeSlot> loadPastEvents() {
         List<TimeSlot> events = new ArrayList<>();
-
         try {
             List<String> lines = Files.readAllLines(Paths.get(PAST_EVENTS_FILE));
             for (String line : lines) {
-                if (line.trim().isEmpty()) continue; // Skip empty lines
+                if (line.trim().isEmpty()) continue;
                 events.add(TimeSlot.fromString(line));
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
         return events;
-    }
-
-
-
-
-    // Shows a popup alert
-    private void showAlert(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 }

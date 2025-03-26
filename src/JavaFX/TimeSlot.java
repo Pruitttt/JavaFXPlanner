@@ -36,19 +36,17 @@ public class TimeSlot {
 
     public String getDateTimeFormatted() {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMMM d, yyyy"); // 📆 Example: "March 19, 2025"
-        return dateTime.format(formatter);
+        return dateTime != null ? dateTime.format(formatter) : "null";
     }
-
-
 
     @Override
     public String toString() {
-        return className + "|" + eventName + "|" + dateTime.format(FORMATTER) + "|" + description;
+        String dateTimeStr = (dateTime != null) ? dateTime.format(FORMATTER) : "null";
+        return className + "|" + eventName + "|" + dateTimeStr + "|" + description;
     }
 
     // Parses a string into a TimeSlot object
     public static TimeSlot fromString(String eventString) {
-
         String[] parts = eventString.split("\\|", -1); // Split with limit to preserve empty fields
 
         if (parts.length < 3) {
@@ -67,5 +65,4 @@ public class TimeSlot {
             throw new IllegalArgumentException("Invalid date format in event: " + eventString, e);
         }
     }
-
 }
