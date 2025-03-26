@@ -30,10 +30,6 @@ public class EventDialog {
     public EventDialog(List<String> classList, String preselectedClass) {
         root = new StackPane();
 
-        Label titleLabel = new Label("Add New Event");
-        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
-        titleLabel.getStyleClass().add("dialog-label");
-
         GridPane formGrid = new GridPane();
         formGrid.setHgap(10);
         formGrid.setVgap(12);
@@ -93,7 +89,7 @@ public class EventDialog {
         amPmDropdown = new ComboBox<>();
         amPmDropdown.getItems().addAll("AM", "PM");
         amPmDropdown.setValue("AM");
-        amPmDropdown.setPrefWidth(70);
+        amPmDropdown.setPrefWidth(120);
         HBox timeBox = new HBox(5, hourField, new Label(":"), minuteField, amPmDropdown);
         timeBox.setAlignment(Pos.CENTER_LEFT);
 
@@ -133,10 +129,10 @@ public class EventDialog {
         HBox buttonBox = new HBox(15, okButton);
         buttonBox.setAlignment(Pos.CENTER);
 
-        VBox content = new VBox(15, titleLabel, formGrid, buttonBox);
+        VBox content = new VBox(15, formGrid, buttonBox);
         content.setPadding(new Insets(20));
         content.setMaxWidth(400);
-        content.setAlignment(Pos.TOP_CENTER);
+        content.setAlignment(Pos.CENTER);
 
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);

@@ -3,6 +3,7 @@ package JavaFX;
 import javafx.animation.*;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -44,12 +45,13 @@ public class PlannerApp extends Application {
         preloadBackgroundImages();
 
         root = new StackPane();
+        root.setStyle("-fx-background-color: #474747 ;");
         // Set up the background once at startup and persist it across views
         initializeBackground();
 
         showMainView();
 
-        Scene scene = new Scene(root, 600, 700);
+        Scene scene = new Scene(root, 700, 750);
         scene.setFill(Color.TRANSPARENT);
         String cssFile = getClass().getResource("styles.css").toExternalForm();
         if (cssFile == null) {
@@ -70,16 +72,11 @@ public class PlannerApp extends Application {
 
     private void preloadBackgroundImages() {
         String[] imagePaths = {
-                "/JavaFX/pexels-eberhardgross-443446.jpg",
-                "/JavaFX/pexels-eberhardgross-568236.jpg",
                 "/JavaFX/pexels-eberhardgross-1670187.jpg",
                 "/JavaFX/pexels-katja-79053-592077.jpg",
                 "/JavaFX/pexels-mattdvphotography-3082313.jpg",
                 "/JavaFX/pexels-pixabay-33109.jpg",
-                "/JavaFX/pexels-rickyrecap-1586298.jpg",
                 "/JavaFX/pexels-todd-trapani-488382-2754200.jpg",
-                "/JavaFX/pexels-tomverdoot-3181458.jpg",
-                "/JavaFX/pexels-tracehudson-2365457.jpg"
         };
 
         backgrounds = new ArrayList<>();
@@ -126,7 +123,7 @@ public class PlannerApp extends Application {
         frontLayer.setOpacity(0); // Front layer starts invisible
 
         // Apply GaussianBlur to the background layers
-        GaussianBlur blur = new GaussianBlur(15); // Adjust blur radius as needed
+        GaussianBlur blur = new GaussianBlur(20); // Adjust blur radius as needed
         backLayer.setEffect(blur);
         frontLayer.setEffect(blur);
 
@@ -180,45 +177,87 @@ public class PlannerApp extends Application {
 
         BorderPane uiLayout = new BorderPane();
         uiLayout.setPadding(new Insets(20));
-        uiLayout.getStyleClass().add("glass-panel"); // Use CSS for transparency
 
         Label title = new Label("Upcoming Events");
-        title.setStyle("-fx-font-size: 25px;");
+        title.setStyle("-fx-font-size: 40px;" +
+                "-fx-font-family: Oswald ");
+        title.setPadding(new Insets(10));
         title.getStyleClass().add("dialog-label");
 
         upcomingEventsList = new ListView<>();
+        // Set fixed preferred width and height for the ListView
+        upcomingEventsList.setPrefWidth(400);
         upcomingEventsList.setPrefHeight(500);
+        // Set maximum width and height to prevent resizing
+        upcomingEventsList.setMaxWidth(400);
+        upcomingEventsList.setMaxHeight(500);
+        // Set minimum width and height to prevent shrinking
+        upcomingEventsList.setMinWidth(400);
+        upcomingEventsList.setMinHeight(500);
         plannerService.addUpdateListener(() -> Platform.runLater(this::updateUpcomingEvents));
         plannerService.movePastEventsToStorage();
         updateUpcomingEvents();
 
-        StackPane listPane = new StackPane(upcomingEventsList);
-        listPane.getStyleClass().add("glass-panel");
-
         Button addEventBtn = new Button("Add Event");
         addEventBtn.getStyleClass().add("button");
-        addEventBtn.setPrefWidth(200);
+        addEventBtn.setPrefWidth(120);
         addEventBtn.setOnAction(e -> showAddEventView(null));
 
         Button viewByClassBtn = new Button("Class View");
         viewByClassBtn.getStyleClass().add("button");
-        viewByClassBtn.setPrefWidth(200);
+        viewByClassBtn.setPrefWidth(120);
         viewByClassBtn.setOnAction(e -> showClassSelectionView());
 
         Button recentEventsBtn = new Button("Past Events");
         recentEventsBtn.getStyleClass().add("button");
-        recentEventsBtn.setPrefWidth(200);
+        recentEventsBtn.setPrefWidth(120);
         recentEventsBtn.setOnAction(e -> showPastEventsView());
 
         HBox buttonRow = new HBox(15, addEventBtn, viewByClassBtn, recentEventsBtn);
         buttonRow.setAlignment(Pos.CENTER);
+        buttonRow.setMaxWidth(400);
+
+        // Create a VBox to hold the ListView and buttons together
+        VBox listWithButtons = new VBox(15, upcomingEventsList, buttonRow);
+        listWithButtons.setAlignment(Pos.CENTER);
+
+        StackPane listPane = new StackPane(listWithButtons);
+        listPane.getStyleClass().add("glass-panel"); // Apply glass-panel style to the entire container
+        listPane.setMaxWidth(400);
+        listPane.setMaxHeight(560); // Height for ListView (500) + buttons (35) + spacing (15) + padding
 
         uiLayout.setTop(title);
         BorderPane.setAlignment(title, Pos.CENTER);
+        // Add a top margin to move the title down
+        BorderPane.setMargin(title, new Insets(40, 0, 0, 0)); // 20 pixels top margin
         uiLayout.setCenter(listPane);
-        uiLayout.setBottom(buttonRow);
-        BorderPane.setMargin(buttonRow, new Insets(15, 0, 0, 0));
+        BorderPane.setAlignment(listPane, Pos.CENTER);
 
+        // Create a new Region to act as the additional translucent box behind the content
+        Region translucentBox = new Region();
+        // Use a distinct style to differentiate it from the ListView's background
+        translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.4);" +
+                "-fx-background-radius: 30;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
+        // Size to wrap around the title, ListView, and buttons with padding
+        translucentBox.setPrefWidth(500);
+        translucentBox.setPrefHeight(700);
+        translucentBox.setMaxWidth(500);
+        translucentBox.setMaxHeight(700);
+        translucentBox.setMinWidth(500);
+        translucentBox.setMinHeight(700);
+
+        // Create a StackPane to layer the translucent box behind the uiLayout
+        StackPane contentWithBackdrop = new StackPane();
+        contentWithBackdrop.getChildren().addAll(translucentBox, uiLayout);
+        StackPane.setAlignment(contentWithBackdrop, Pos.CENTER);
+
+        // Add the contentWithBackdrop to the root StackPane
+        root.getChildren().add(contentWithBackdrop);
+        root.setAlignment(Pos.CENTER); // Center the content in the window
+        previousView = uiLayout; // Store the uiLayout as the previous view
+
+        // Ensure the ListView's onMouseClicked handler works
         upcomingEventsList.setOnMouseClicked(event -> {
             if (event.getClickCount() == 2) {
                 String selectedEvent = upcomingEventsList.getSelectionModel().getSelectedItem();
@@ -239,10 +278,7 @@ public class PlannerApp extends Application {
             }
         });
 
-        root.getChildren().add(uiLayout);
-        previousView = uiLayout; // Store the main view as the previous view
-
-        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), uiLayout);
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
         fadeIn.setFromValue(0);
         fadeIn.setToValue(1);
         fadeIn.play();
@@ -253,8 +289,14 @@ public class PlannerApp extends Application {
         List<Node> childrenToKeep = List.of(backLayer, frontLayer);
         root.getChildren().removeIf(node -> !childrenToKeep.contains(node));
 
+        // Create and style the title label
+        Label titleLabel = new Label("Add Event");
+        titleLabel.getStyleClass().add("dialog-label");
+        titleLabel.setStyle("-fx-font-size: 40px;");
+
         EventDialog dialog = new EventDialog(plannerService.loadClasses(), preselectedClass);
         dialog.root.getStyleClass().add("glass-panel"); // Apply glass-panel to the dialog's root StackPane
+
         // Ensure the dialog's content is on top
         ScrollPane scrollPane = (ScrollPane) dialog.root.getChildren().get(0);
         scrollPane.setStyle("-fx-background-color: rgba(150, 150, 150, 0.5)");
@@ -264,9 +306,16 @@ public class PlannerApp extends Application {
         Button backButton = new Button("Back");
         backButton.getStyleClass().add("button");
         backButton.setPrefWidth(120);
-        backButton.setOnAction(e -> showMainView());
+        // Navigate back to the specific class view if preselectedClass is not null, otherwise go to main view
+        backButton.setOnAction(e -> {
+            if (preselectedClass != null) {
+                showEventsByClassView(preselectedClass);
+            } else {
+                showMainView();
+            }
+        });
 
-        HBox buttonBox = (HBox) content.getChildren().get(2);
+        HBox buttonBox = (HBox) content.getChildren().get(1); // Index 1 since title is no longer in EventDialog
         buttonBox.getChildren().add(0, backButton);
         buttonBox.setSpacing(15);
 
@@ -274,14 +323,45 @@ public class PlannerApp extends Application {
             if (event != null) {
                 plannerService.saveEvent(event);
                 plannerService.movePastEventsToStorage();
-                showMainView();
+                // Navigate back to the specific class view if preselectedClass is not null, otherwise go to main view
+                if (preselectedClass != null) {
+                    showEventsByClassView(preselectedClass);
+                } else {
+                    showMainView();
+                }
             }
         };
 
-        root.getChildren().add(dialog.root);
-        previousView = dialog.root; // Store the dialog as the previous view
+        // Create a new VBox to hold the title and the dialog's root
+        VBox mainLayout = new VBox(10); // 10 pixels spacing between title and dialog
+        mainLayout.setAlignment(Pos.CENTER);
+        mainLayout.getChildren().addAll(titleLabel, dialog.root);
 
-        FadeTransition fadeIn = new FadeTransition(Duration.millis(150), dialog.root);
+        // Create a new Region to act as the additional translucent box behind the content
+        Region translucentBox = new Region();
+        // Use the same distinct style as in showMainView and showAddEventView
+        translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.5);" +
+                "-fx-background-radius: 30;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
+        // Set a fixed size to wrap around the title and form with padding
+        translucentBox.setPrefWidth(450); // Match the reduced width from the previous update
+        translucentBox.setPrefHeight(680);
+        translucentBox.setMaxWidth(450);
+        translucentBox.setMaxHeight(680);
+        translucentBox.setMinWidth(450);
+        translucentBox.setMinHeight(680);
+
+        // Create a StackPane to layer the translucent box behind the mainLayout
+        StackPane contentWithBackdrop = new StackPane();
+        contentWithBackdrop.getChildren().addAll(translucentBox, mainLayout);
+        StackPane.setAlignment(contentWithBackdrop, Pos.CENTER);
+
+        // Add the contentWithBackdrop to the root StackPane
+        root.getChildren().add(contentWithBackdrop);
+        root.setAlignment(Pos.CENTER); // Center the entire layout in the window
+        previousView = contentWithBackdrop; // Store the contentWithBackdrop as the previous view
+
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
         fadeIn.setFromValue(0);
         fadeIn.setToValue(1);
         fadeIn.play();
@@ -292,13 +372,16 @@ public class PlannerApp extends Application {
         List<Node> childrenToKeep = List.of(backLayer, frontLayer);
         root.getChildren().removeIf(node -> !childrenToKeep.contains(node));
 
+        // Create and style the title label
+        Label title = new Label("Past Events");
+        title.setStyle("-fx-font-size: 40px;");
+        title.setAlignment(Pos.CENTER);
+        title.getStyleClass().add("dialog-label");
+
         VBox content = new VBox(15);
         content.getStyleClass().add("glass-panel");
         content.setPadding(new Insets(20));
         content.setMaxWidth(450);
-
-        Label title = new Label("Past Events");
-        title.getStyleClass().add("dialog-label");
 
         ListView<TimeSlot> pastEventsList = new ListView<>();
         pastEventsList.getItems().setAll(plannerService.loadPastEvents());
@@ -377,7 +460,7 @@ public class PlannerApp extends Application {
             confirmationCard.setScaleY(0.8);
             confirmationCard.setOpacity(0);
             Timeline timeline = new Timeline(
-                    new KeyFrame(Duration.millis(300),
+                    new KeyFrame(Duration.millis(150),
                             new KeyValue(confirmationCard.scaleXProperty(), 1, Interpolator.EASE_OUT),
                             new KeyValue(confirmationCard.scaleYProperty(), 1, Interpolator.EASE_OUT),
                             new KeyValue(confirmationCard.opacityProperty(), 1, Interpolator.EASE_OUT)
@@ -394,11 +477,38 @@ public class PlannerApp extends Application {
         HBox buttonBox = new HBox(15, backButton, clearPastEventsBtn);
         buttonBox.setAlignment(Pos.CENTER);
 
-        content.getChildren().addAll(title, pastEventsList, buttonBox);
-        root.getChildren().add(content);
-        previousView = content; // Store the past events view as the previous view
+        content.getChildren().addAll(pastEventsList, buttonBox);
 
-        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), content);
+        // Create a new VBox to hold the title and the content
+        VBox mainLayout = new VBox(10); // 10 pixels spacing between title and content
+        mainLayout.setAlignment(Pos.CENTER);
+        mainLayout.getChildren().addAll(title, content);
+
+        // Create a new Region to act as the additional translucent box behind the content
+        Region translucentBox = new Region();
+        // Use the same distinct style as in showMainView, showAddEventView, and showClassSelectionView
+        translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.4);" +
+                "-fx-background-radius: 30;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
+        // Set a fixed size to wrap around the title, ListView, and buttons with padding
+        translucentBox.setPrefWidth(500);
+        translucentBox.setPrefHeight(500); // Match the height from showClassSelectionView
+        translucentBox.setMaxWidth(500);
+        translucentBox.setMaxHeight(500);
+        translucentBox.setMinWidth(500);
+        translucentBox.setMinHeight(500);
+
+        // Create a StackPane to layer the translucent box behind the mainLayout
+        StackPane contentWithBackdrop = new StackPane();
+        contentWithBackdrop.getChildren().addAll(translucentBox, mainLayout);
+        StackPane.setAlignment(contentWithBackdrop, Pos.CENTER);
+
+        // Add the contentWithBackdrop to the root StackPane
+        root.getChildren().add(contentWithBackdrop);
+        root.setAlignment(Pos.CENTER); // Center the content in the window
+        previousView = contentWithBackdrop; // Store the contentWithBackdrop as the previous view
+
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
         fadeIn.setFromValue(0);
         fadeIn.setToValue(1);
         fadeIn.play();
@@ -409,13 +519,15 @@ public class PlannerApp extends Application {
         List<Node> childrenToKeep = List.of(backLayer, frontLayer);
         root.getChildren().removeIf(node -> !childrenToKeep.contains(node));
 
+        // Create and style the title label
+        Label title = new Label("Select Class");
+        title.setStyle("-fx-font-size: 40");
+        title.getStyleClass().add("dialog-label");
+
         VBox content = new VBox(15);
         content.getStyleClass().add("glass-panel");
         content.setPadding(new Insets(20));
         content.setMaxWidth(400);
-
-        Label title = new Label("Select Class");
-        title.getStyleClass().add("dialog-label");
 
         ListView<String> classListView = new ListView<>();
         classListView.getItems().addAll(plannerService.loadClasses());
@@ -451,12 +563,38 @@ public class PlannerApp extends Application {
         HBox buttonBox = new HBox(15, backButton, addClassBtn);
         buttonBox.setAlignment(Pos.CENTER);
 
-        content.getChildren().addAll(title, classListView, buttonBox);
-        root.getChildren().add(content);
-        root.setAlignment(Pos.CENTER);
-        previousView = content; // Store the class selection view as the previous view
+        content.getChildren().addAll(classListView, buttonBox);
 
-        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), content);
+        // Create a new VBox to hold the title and the content
+        VBox mainLayout = new VBox(10); // 10 pixels spacing between title and content
+        mainLayout.setAlignment(Pos.CENTER);
+        mainLayout.getChildren().addAll(title, content);
+
+        // Create a new Region to act as the additional translucent box behind the content
+        Region translucentBox = new Region();
+        // Use the same distinct style as in showMainView and showAddEventView
+        translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.4);" +
+                "-fx-background-radius: 30;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
+        // Set a fixed size to wrap around the title, ListView, and buttons with less padding at top and bottom
+        translucentBox.setPrefWidth(500);
+        translucentBox.setPrefHeight(500); // Reduced height to decrease space at top and bottom
+        translucentBox.setMaxWidth(500);
+        translucentBox.setMaxHeight(500);
+        translucentBox.setMinWidth(500);
+        translucentBox.setMinHeight(500);
+
+        // Create a StackPane to layer the translucent box behind the mainLayout
+        StackPane contentWithBackdrop = new StackPane();
+        contentWithBackdrop.getChildren().addAll(translucentBox, mainLayout);
+        StackPane.setAlignment(contentWithBackdrop, Pos.CENTER);
+
+        // Add the contentWithBackdrop to the root StackPane
+        root.getChildren().add(contentWithBackdrop);
+        root.setAlignment(Pos.CENTER); // Center the content in the window
+        previousView = contentWithBackdrop; // Store the contentWithBackdrop as the previous view
+
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
         fadeIn.setFromValue(0);
         fadeIn.setToValue(1);
         fadeIn.play();
@@ -467,17 +605,21 @@ public class PlannerApp extends Application {
         List<Node> childrenToKeep = List.of(backLayer, frontLayer);
         root.getChildren().removeIf(node -> !childrenToKeep.contains(node));
 
+        // Create and style the title label
+        Label title = new Label("Events for " + className);
+        title.getStyleClass().add("dialog-label");
+
         VBox content = new VBox(15);
         content.getStyleClass().add("glass-panel");
         content.setPadding(new Insets(20));
-        content.setMaxWidth(500);
-
-        Label title = new Label("Events for " + className);
-        title.getStyleClass().add("dialog-label");
+        content.setMaxWidth(400);
 
         ListView<TimeSlot> eventList = new ListView<>();
         eventList.getItems().addAll(plannerService.loadEventsForClass(className));
         eventList.setPrefHeight(300);
+        eventList.setPrefWidth(400);
+        eventList.setMaxWidth(400);
+        eventList.setMinWidth(400);
         eventList.setCellFactory(lv -> new ListCell<TimeSlot>() {
             @Override
             protected void updateItem(TimeSlot event, boolean empty) {
@@ -501,45 +643,118 @@ public class PlannerApp extends Application {
 
         Button addEventBtn = new Button("Add Event");
         addEventBtn.getStyleClass().add("button");
-        addEventBtn.setPrefWidth(200);
+        addEventBtn.setPrefWidth(120);
         addEventBtn.setOnAction(e -> showAddEventView(className));
 
         Button deleteClassBtn = new Button("Delete Class");
         deleteClassBtn.getStyleClass().add("button");
-        deleteClassBtn.setPrefWidth(200);
+        deleteClassBtn.setPrefWidth(120);
         deleteClassBtn.setOnAction(e -> {
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Confirm Delete");
-            alert.setHeaderText("Are you sure you want to delete this class?");
-            alert.setContentText("All events associated with this class will also be deleted.");
-            alert.showAndWait().ifPresent(response -> {
-                if (response == ButtonType.OK) {
-                    plannerService.deleteClass(className);
-                    showClassSelectionView();
-                }
+            // Create a confirmation card
+            VBox confirmationCard = new VBox(10);
+            confirmationCard.getStyleClass().add("event-card");
+            confirmationCard.setPadding(new Insets(15));
+            confirmationCard.setMaxWidth(320);
+            confirmationCard.setMaxHeight(200);
+            confirmationCard.setAlignment(Pos.CENTER);
+
+            Label cardTitle = new Label("Delete Class");
+            cardTitle.getStyleClass().add("card-title");
+
+            Separator separator = new Separator();
+            separator.getStyleClass().add("card-separator");
+            separator.setPrefWidth(280);
+
+            Label message = new Label("Are you sure you want to delete this class? All events associated with this class will also be deleted.");
+            message.setWrapText(true);
+            message.setMaxWidth(280);
+            message.setAlignment(Pos.CENTER);
+            message.getStyleClass().add("card-label-value");
+
+            Button confirmButton = new Button("Confirm");
+            confirmButton.getStyleClass().add("card-button-delete");
+            confirmButton.setPrefWidth(100);
+            confirmButton.setOnAction(evt -> {
+                plannerService.deleteClass(className);
+                root.getChildren().remove(confirmationCard); // Remove card after confirmation
+                showClassSelectionView();
             });
+
+            Button cancelButton = new Button("Cancel");
+            cancelButton.getStyleClass().add("card-button-close");
+            cancelButton.setPrefWidth(100);
+            cancelButton.setOnAction(evt -> root.getChildren().remove(confirmationCard)); // Remove card on cancel
+
+            HBox buttonBox = new HBox(8, cancelButton, confirmButton);
+            buttonBox.setAlignment(Pos.CENTER);
+
+            confirmationCard.getChildren().addAll(cardTitle, separator, message, buttonBox);
+            StackPane.setAlignment(confirmationCard, Pos.CENTER);
+            StackPane.setMargin(confirmationCard, new Insets(10, 0, 10, 0));
+
+            root.getChildren().add(confirmationCard);
+
+            // Animation for card entrance
+            confirmationCard.setScaleX(0.8);
+            confirmationCard.setScaleY(0.8);
+            confirmationCard.setOpacity(0);
+            Timeline timeline = new Timeline(
+                    new KeyFrame(Duration.millis(150),
+                            new KeyValue(confirmationCard.scaleXProperty(), 1, Interpolator.EASE_OUT),
+                            new KeyValue(confirmationCard.scaleYProperty(), 1, Interpolator.EASE_OUT),
+                            new KeyValue(confirmationCard.opacityProperty(), 1, Interpolator.EASE_OUT)
+                    )
+            );
+            timeline.play();
         });
 
         Button backButton = new Button("Back");
         backButton.getStyleClass().add("button");
-        backButton.setPrefWidth(200);
+        backButton.setPrefWidth(120);
         backButton.setOnAction(e -> showClassSelectionView());
 
         HBox buttonBox = new HBox(15, backButton, addEventBtn, deleteClassBtn);
         buttonBox.setAlignment(Pos.CENTER);
+        buttonBox.setMaxWidth(400);
 
-        content.getChildren().addAll(title, eventList, buttonBox);
-        root.getChildren().add(content);
-        previousView = content; // Store the events by class view as the previous view
+        content.getChildren().addAll(eventList, buttonBox);
 
-        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), content);
+        // Create a new VBox to hold the title and the content
+        VBox mainLayout = new VBox(10);
+        mainLayout.setAlignment(Pos.CENTER);
+        mainLayout.getChildren().addAll(title, content);
+
+        // Create a new Region to act as the additional translucent box behind the content
+        Region translucentBox = new Region();
+        // Use the same distinct style as in the other views
+        translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.5);" +
+                "-fx-background-radius: 30;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
+        // Set a fixed size to wrap around the title, ListView, and buttons with padding
+        translucentBox.setPrefWidth(450);
+        translucentBox.setPrefHeight(500);
+        translucentBox.setMaxWidth(450);
+        translucentBox.setMaxHeight(500);
+        translucentBox.setMinWidth(450);
+        translucentBox.setMinHeight(500);
+
+        // Create a StackPane to layer the translucent box behind the mainLayout
+        StackPane contentWithBackdrop = new StackPane();
+        contentWithBackdrop.getChildren().addAll(translucentBox, mainLayout);
+        StackPane.setAlignment(contentWithBackdrop, Pos.CENTER);
+
+        // Add the contentWithBackdrop to the root StackPane
+        root.getChildren().add(contentWithBackdrop);
+        root.setAlignment(Pos.CENTER);
+        previousView = contentWithBackdrop;
+
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
         fadeIn.setFromValue(0);
         fadeIn.setToValue(1);
         fadeIn.play();
     }
 
     private void showEventDetailsView(TimeSlot event) {
-        // Do not remove the previous view; overlay the EventDetails card on top
         // Create the EventDetails card content
         VBox cardContent = new VBox(10);
         cardContent.getStyleClass().add("event-card");
@@ -584,6 +799,7 @@ public class PlannerApp extends Application {
         grid.add(descKey, 0, 2);
         grid.add(descValue, 1, 2);
 
+        // Create buttons without setting actions yet
         Button modifyButton = new Button("Modify");
         modifyButton.getStyleClass().add("card-button-modify");
         modifyButton.setPrefWidth(80);
@@ -606,37 +822,82 @@ public class PlannerApp extends Application {
 
         cardContent.getChildren().addAll(titleLabel, separator, grid, buttonBox);
 
-        // Create a translucent box as the background of the card
-        Region translucentBox = new Region();
-        translucentBox.setStyle(".event-card");
-        translucentBox.setMaxWidth(360);
-        translucentBox.setMaxHeight(240);
 
-        // Create a StackPane to hold the translucent box and the card content
+        // Create and add cardWithBackdrop
         StackPane cardWithBackdrop = new StackPane();
-        cardWithBackdrop.getChildren().addAll(translucentBox, cardContent);
-        StackPane.setAlignment(cardWithBackdrop, Pos.CENTER);
+        cardWithBackdrop.getChildren().addAll(cardContent);
         StackPane.setMargin(cardWithBackdrop, new Insets(10, 0, 10, 0));
-
-        // Add the card with backdrop to the root StackPane
         root.getChildren().add(cardWithBackdrop);
 
-        // Set up button actions to remove the entire cardWithBackdrop
+        // Now set the button actions after cardWithBackdrop is defined
         modifyButton.setOnAction(e -> {
-            root.getChildren().remove(cardWithBackdrop); // Remove the card with backdrop
+            root.getChildren().remove(cardWithBackdrop);
             showModifyEventView(event);
         });
 
         deleteButton.setOnAction(e -> {
-            if (confirmAndDeleteEvent(event)) {
-                root.getChildren().remove(cardWithBackdrop); // Remove the card with backdrop
+            // Create a confirmation card
+            VBox confirmationCard = new VBox(10);
+            confirmationCard.getStyleClass().add("event-card");
+            confirmationCard.setPadding(new Insets(15));
+            confirmationCard.setMaxWidth(320);
+            confirmationCard.setMaxHeight(200);
+            confirmationCard.setAlignment(Pos.CENTER);
+
+            Label cardTitle = new Label("Delete Event");
+            cardTitle.getStyleClass().add("card-title");
+
+            Separator separator2 = new Separator();
+            separator2.getStyleClass().add("card-separator");
+            separator2.setPrefWidth(280);
+
+            Label message = new Label("Are you sure you want to delete this event? " + event.getEventName() + " (" + event.getClassName() + ")");
+            message.setWrapText(true);
+            message.setMaxWidth(280);
+            message.setAlignment(Pos.CENTER);
+            message.getStyleClass().add("card-label-value");
+
+            Button confirmButton = new Button("Confirm");
+            confirmButton.getStyleClass().add("card-button-delete");
+            confirmButton.setPrefWidth(100);
+            confirmButton.setOnAction(evt -> {
+                plannerService.deleteEvent(event.getEventName(), event.getClassName());
+                updateUpcomingEvents();
+                root.getChildren().remove(confirmationCard);
+                root.getChildren().remove(cardWithBackdrop); // Now accessible
                 showMainView();
-            }
+            });
+
+            Button cancelButton = new Button("Cancel");
+            cancelButton.getStyleClass().add("card-button-close");
+            cancelButton.setPrefWidth(100);
+            cancelButton.setOnAction(evt -> root.getChildren().remove(confirmationCard));
+
+            HBox confirmButtonBox = new HBox(8, cancelButton, confirmButton);
+            confirmButtonBox.setAlignment(Pos.CENTER);
+
+            confirmationCard.getChildren().addAll(cardTitle, separator2, message, confirmButtonBox);
+            StackPane.setAlignment(confirmationCard, Pos.CENTER);
+            StackPane.setMargin(confirmationCard, new Insets(10, 0, 10, 0));
+
+            root.getChildren().add(confirmationCard);
+
+            // Animation for confirmation card
+            confirmationCard.setScaleX(0.8);
+            confirmationCard.setScaleY(0.8);
+            confirmationCard.setOpacity(0);
+            Timeline timeline = new Timeline(
+                    new KeyFrame(Duration.millis(150),
+                            new KeyValue(confirmationCard.scaleXProperty(), 1, Interpolator.EASE_OUT),
+                            new KeyValue(confirmationCard.scaleYProperty(), 1, Interpolator.EASE_OUT),
+                            new KeyValue(confirmationCard.opacityProperty(), 1, Interpolator.EASE_OUT)
+                    )
+            );
+            timeline.play();
         });
 
         backButton.setOnAction(e -> {
-            root.getChildren().remove(cardWithBackdrop); // Remove the card with backdrop
-            // No need to re-add previousView since it was never removed
+            root.getChildren().remove(cardWithBackdrop);
         });
 
         // Animate the card with backdrop
@@ -658,13 +919,15 @@ public class PlannerApp extends Application {
         List<Node> childrenToKeep = List.of(backLayer, frontLayer);
         root.getChildren().removeIf(node -> !childrenToKeep.contains(node));
 
+        // Create and style the title label
+        Label titleLabel = new Label("Modify Event");
+        titleLabel.getStyleClass().add("dialog-label");
+        titleLabel.setStyle("-fx-font-size: 40");
+
         VBox content = new VBox(15);
         content.getStyleClass().add("glass-panel");
         content.setPadding(new Insets(20));
         content.setMaxWidth(400);
-
-        Label titleLabel = new Label("Modify Event");
-        titleLabel.getStyleClass().add("dialog-label");
 
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -763,16 +1026,43 @@ public class PlannerApp extends Application {
         HBox buttonBox = new HBox(15, backButton, saveButton);
         buttonBox.setAlignment(Pos.CENTER);
 
-        content.getChildren().addAll(titleLabel, grid, buttonBox);
+        content.getChildren().addAll(grid, buttonBox);
+
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
         scrollPane.setMaxWidth(400);
         StackPane.setMargin(scrollPane, new Insets(20));
 
-        root.getChildren().add(scrollPane);
-        previousView = scrollPane; // Store the modify view as the previous view
+        // Create a new VBox to hold the title and the content
+        VBox mainLayout = new VBox(10); // 10 pixels spacing between title and content
+        mainLayout.setAlignment(Pos.CENTER);
+        mainLayout.getChildren().addAll(titleLabel, scrollPane);
 
-        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), scrollPane);
+        // Create a new Region to act as the additional translucent box behind the content
+        Region translucentBox = new Region();
+        // Use the same distinct style as in the other views
+        translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.5);" +
+                "-fx-background-radius: 30;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
+        // Set a fixed size to wrap around the title, form fields, and buttons with padding
+        translucentBox.setPrefWidth(450); // Match the width from showEventsByClassView
+        translucentBox.setPrefHeight(500); // Match the height from showClassSelectionView and showPastEventsView
+        translucentBox.setMaxWidth(450);
+        translucentBox.setMaxHeight(500);
+        translucentBox.setMinWidth(450);
+        translucentBox.setMinHeight(500);
+
+        // Create a StackPane to layer the translucent box behind the mainLayout
+        StackPane contentWithBackdrop = new StackPane();
+        contentWithBackdrop.getChildren().addAll(translucentBox, mainLayout);
+        StackPane.setAlignment(contentWithBackdrop, Pos.CENTER);
+
+        // Add the contentWithBackdrop to the root StackPane
+        root.getChildren().add(contentWithBackdrop);
+        root.setAlignment(Pos.CENTER); // Center the content in the window
+        previousView = contentWithBackdrop; // Store the contentWithBackdrop as the previous view
+
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
         fadeIn.setFromValue(0);
         fadeIn.setToValue(1);
         fadeIn.play();
@@ -790,18 +1080,6 @@ public class PlannerApp extends Application {
                 upcomingEventsList.getItems().add(event.getClassName() + " - " + event.getEventName() + " - " + event.getDateTimeFormatted());
             }
         }
-    }
-
-    private boolean confirmAndDeleteEvent(TimeSlot event) {
-        Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmDialog.setTitle("Delete Event");
-        confirmDialog.setHeaderText("Are you sure you want to delete this event?");
-        confirmDialog.setContentText(event.getEventName() + " (" + event.getClassName() + ")");
-        return confirmDialog.showAndWait().filter(response -> response == ButtonType.OK).map(response -> {
-            plannerService.deleteEvent(event.getEventName(), event.getClassName());
-            updateUpcomingEvents();
-            return true;
-        }).orElse(false);
     }
 
     private void showAlert(String title, String content) {

@@ -48,7 +48,7 @@
 
 /* ListView container */
 .list-view {
-    -fx-background-color: rgba(150, 150, 150, 0.5); /* Neutral gray translucency */
+    -fx-background-color: rgba(150, 150, 150, 0.4); /* Neutral gray translucency */
     -fx-border-color: rgba(255, 255, 255, 0.3);
     -fx-border-radius: 18;
     -fx-background-radius: 18;
@@ -69,6 +69,7 @@
 .list-cell:hover {
     -fx-background-color: rgba(150, 150, 150, 0.3);
 }
+
 
 /* Selected item */
 .list-cell:selected {
@@ -109,7 +110,7 @@
 
 /* Hover Effects */
 .text-field:hover, .combo-box:hover, .text-area:hover {
-    -fx-background-color: rgba(150, 150, 150, 0.3);
+    -fx-background-color: rgba(150, 150, 150, 0.42);
     -fx-border-color: rgba(255, 255, 255, 0.85);
 }
 
