@@ -182,7 +182,8 @@ public class PlannerApp extends Application {
         uiLayout.setPadding(new Insets(20));
         uiLayout.getStyleClass().add("glass-panel"); // Use CSS for transparency
 
-        Label title = new Label("Planner App");
+        Label title = new Label("Upcoming Events");
+        title.setStyle("-fx-font-size: 25px;");
         title.getStyleClass().add("dialog-label");
 
         upcomingEventsList = new ListView<>();
@@ -254,9 +255,9 @@ public class PlannerApp extends Application {
 
         EventDialog dialog = new EventDialog(plannerService.loadClasses(), preselectedClass);
         dialog.root.getStyleClass().add("glass-panel"); // Apply glass-panel to the dialog's root StackPane
-
         // Ensure the dialog's content is on top
         ScrollPane scrollPane = (ScrollPane) dialog.root.getChildren().get(0);
+        scrollPane.setStyle("-fx-background-color: rgba(150, 150, 150, 0.5)");
         VBox content = (VBox) scrollPane.getContent();
         content.getStyleClass().add("glass-panel"); // Ensure the content VBox has glass-panel style
 
@@ -280,7 +281,7 @@ public class PlannerApp extends Application {
         root.getChildren().add(dialog.root);
         previousView = dialog.root; // Store the dialog as the previous view
 
-        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), dialog.root);
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(150), dialog.root);
         fadeIn.setFromValue(0);
         fadeIn.setToValue(1);
         fadeIn.play();
@@ -327,16 +328,62 @@ public class PlannerApp extends Application {
         clearPastEventsBtn.getStyleClass().add("button");
         clearPastEventsBtn.setPrefWidth(200);
         clearPastEventsBtn.setOnAction(e -> {
-            Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
-            confirmDialog.setTitle("Clear Past Events");
-            confirmDialog.setHeaderText("Are you sure you want to delete ALL past events?");
-            confirmDialog.setContentText("This action cannot be undone.");
-            confirmDialog.showAndWait().ifPresent(response -> {
-                if (response == ButtonType.OK) {
-                    plannerService.clearPastEvents();
-                    pastEventsList.getItems().clear();
-                }
+            // Create a confirmation card
+            VBox confirmationCard = new VBox(10);
+            confirmationCard.getStyleClass().add("event-card");
+            confirmationCard.setPadding(new Insets(15));
+            confirmationCard.setMaxWidth(320);
+            confirmationCard.setMaxHeight(200);
+            confirmationCard.setAlignment(Pos.CENTER);
+
+            Label cardTitle = new Label("Clear Past Events");
+            cardTitle.getStyleClass().add("card-title");
+
+            Separator separator = new Separator();
+            separator.getStyleClass().add("card-separator");
+            separator.setPrefWidth(280);
+
+            Label message = new Label("Are you sure you want to delete ALL past events? This action cannot be undone.");
+            message.setWrapText(true);
+            message.setMaxWidth(280);
+            message.setAlignment(Pos.CENTER);
+            message.getStyleClass().add("card-label-value");
+
+            Button confirmButton = new Button("Confirm");
+            confirmButton.getStyleClass().add("card-button-delete"); // Reuse delete style for consistency
+            confirmButton.setPrefWidth(100);
+            confirmButton.setOnAction(evt -> {
+                plannerService.clearPastEvents();
+                pastEventsList.getItems().clear();
+                root.getChildren().remove(confirmationCard); // Remove card after confirmation
             });
+
+            Button cancelButton = new Button("Cancel");
+            cancelButton.getStyleClass().add("card-button-close");
+            cancelButton.setPrefWidth(100);
+            cancelButton.setOnAction(evt -> root.getChildren().remove(confirmationCard)); // Remove card on cancel
+
+            HBox buttonBox = new HBox(8, cancelButton, confirmButton);
+            buttonBox.setAlignment(Pos.CENTER);
+
+            confirmationCard.getChildren().addAll(cardTitle, separator, message, buttonBox);
+            StackPane.setAlignment(confirmationCard, Pos.CENTER);
+            StackPane.setMargin(confirmationCard, new Insets(10, 0, 10, 0));
+
+            root.getChildren().add(confirmationCard);
+
+            // Animation for card entrance
+            confirmationCard.setScaleX(0.8);
+            confirmationCard.setScaleY(0.8);
+            confirmationCard.setOpacity(0);
+            Timeline timeline = new Timeline(
+                    new KeyFrame(Duration.millis(300),
+                            new KeyValue(confirmationCard.scaleXProperty(), 1, Interpolator.EASE_OUT),
+                            new KeyValue(confirmationCard.scaleYProperty(), 1, Interpolator.EASE_OUT),
+                            new KeyValue(confirmationCard.opacityProperty(), 1, Interpolator.EASE_OUT)
+                    )
+            );
+            timeline.play();
         });
 
         Button backButton = new Button("Back");
@@ -561,11 +608,7 @@ public class PlannerApp extends Application {
 
         // Create a translucent box as the background of the card
         Region translucentBox = new Region();
-        translucentBox.setStyle(
-                "-fx-background-color: rgba(37, 87, 85, 0.7);" +
-                        "-fx-background-radius: 20;" +
-                        "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 10, 0.5, 0, 0);"
-        );
+        translucentBox.setStyle(".event-card");
         translucentBox.setMaxWidth(360);
         translucentBox.setMaxHeight(240);
 
@@ -601,7 +644,7 @@ public class PlannerApp extends Application {
         cardWithBackdrop.setScaleY(0.8);
         cardWithBackdrop.setOpacity(0);
         Timeline timeline = new Timeline(
-                new KeyFrame(Duration.millis(300),
+                new KeyFrame(Duration.millis(150),
                         new KeyValue(cardWithBackdrop.scaleXProperty(), 1, Interpolator.EASE_OUT),
                         new KeyValue(cardWithBackdrop.scaleYProperty(), 1, Interpolator.EASE_OUT),
                         new KeyValue(cardWithBackdrop.opacityProperty(), 1, Interpolator.EASE_OUT)
