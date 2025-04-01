@@ -17,10 +17,10 @@ import java.util.function.Consumer;
 
 public class EventDialog {
     private ComboBox<String> classDropdown;
-    private TextField newClassField, eventNameField, monthField, dayField, yearField, hourField, minuteField;
+    public TextField newClassField, eventNameField, monthField, dayField, yearField, hourField, minuteField;
     private ComboBox<String> amPmDropdown;
     private TextArea descField;
-    public StackPane root; // Public for external access
+    public StackPane root;
     public Consumer<TimeSlot> resultHandler;
 
     public EventDialog(List<String> classList) {
@@ -35,6 +35,14 @@ public class EventDialog {
         formGrid.setVgap(12);
         formGrid.setPadding(new Insets(15));
         formGrid.setAlignment(Pos.CENTER);
+
+        // Set column constraints to ensure the first column is wide enough
+        ColumnConstraints labelColumn = new ColumnConstraints();
+        labelColumn.setMinWidth(120); // Adjust this value as needed to fit "Description:"
+        labelColumn.setHgrow(Priority.NEVER); // Prevent the label column from growing
+        ColumnConstraints inputColumn = new ColumnConstraints();
+        inputColumn.setHgrow(Priority.ALWAYS); // Allow the input column to grow
+        formGrid.getColumnConstraints().addAll(labelColumn, inputColumn);
 
         classDropdown = new ComboBox<>();
         classDropdown.getItems().add("Add New Class...");
@@ -51,7 +59,6 @@ public class EventDialog {
             String selected = classDropdown.getValue();
             if ("Add New Class...".equals(selected) || selected == null) {
                 newClassField.setDisable(false);
-                newClassField.requestFocus();
             } else {
                 newClassField.setDisable(true);
                 newClassField.clear();
@@ -62,6 +69,8 @@ public class EventDialog {
             classDropdown.setValue(preselectedClass);
             classDropdown.setDisable(true);
             newClassField.setDisable(true);
+        } else {
+            classDropdown.setValue("Add New Class...");
         }
 
         eventNameField = new TextField();
@@ -97,7 +106,7 @@ public class EventDialog {
         descField.setPromptText("Description (Optional)");
         descField.setWrapText(true);
         descField.setPrefRowCount(3);
-        descField.setPrefWidth(200);
+        descField.setPrefWidth(300);
 
         int row = 0;
         formGrid.add(new Label("Class:"), 0, row);
@@ -125,7 +134,6 @@ public class EventDialog {
             }
         });
 
-
         HBox buttonBox = new HBox(15, okButton);
         buttonBox.setAlignment(Pos.CENTER);
 
@@ -144,8 +152,8 @@ public class EventDialog {
         root.getChildren().add(scrollPane);
     }
 
+    // Rest of the EventDialog class remains unchanged
     private boolean validateFields() {
-        // Same as original
         try {
             String selectedClass = classDropdown.getValue();
             String newClass = newClassField.getText().trim();
@@ -189,7 +197,6 @@ public class EventDialog {
     }
 
     private TimeSlot createTimeSlot() {
-        // Same as original
         try {
             String finalClass = newClassField.getText().isEmpty()
                     ? classDropdown.getValue()
@@ -214,7 +221,7 @@ public class EventDialog {
             LocalDateTime dateTime = LocalDateTime.of(year, month, day, hour, minute);
 
             if (!newClassField.getText().trim().isEmpty()) {
-                PlannerService plannerService = new PlannerService(); // No stage needed
+                PlannerService plannerService = new PlannerService();
                 if (!plannerService.classExists(finalClass)) {
                     plannerService.addNewClass(finalClass);
                 }

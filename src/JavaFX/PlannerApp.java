@@ -11,6 +11,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.effect.GaussianBlur;
 import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -139,7 +140,7 @@ public class PlannerApp extends Application {
         // Smooth background cycling with cross-fade
         AtomicInteger currentIndex = new AtomicInteger(1); // Start at second image
         backgroundTimeline = new Timeline();
-        backgroundTimeline.getKeyFrames().add(new KeyFrame(Duration.seconds(120), e -> {
+        backgroundTimeline.getKeyFrames().add(new KeyFrame(Duration.seconds(5), e -> {
             int nextIndex = (currentIndex.get() + 1) % backgrounds.size(); // Move to next image, loop back
 
             // Prepare the next image in the front layer
@@ -285,28 +286,24 @@ public class PlannerApp extends Application {
     }
 
     private void showAddEventView(String preselectedClass) {
-        // Clear the content except for the background layers
         List<Node> childrenToKeep = List.of(backLayer, frontLayer);
         root.getChildren().removeIf(node -> !childrenToKeep.contains(node));
 
-        // Create and style the title label
         Label titleLabel = new Label("Add Event");
         titleLabel.getStyleClass().add("dialog-label");
         titleLabel.setStyle("-fx-font-size: 40px;");
 
         EventDialog dialog = new EventDialog(plannerService.loadClasses(), preselectedClass);
-        dialog.root.getStyleClass().add("glass-panel"); // Apply glass-panel to the dialog's root StackPane
+        dialog.root.getStyleClass().add("glass-panel");
 
-        // Ensure the dialog's content is on top
         ScrollPane scrollPane = (ScrollPane) dialog.root.getChildren().get(0);
         scrollPane.setStyle("-fx-background-color: rgba(150, 150, 150, 0.5)");
         VBox content = (VBox) scrollPane.getContent();
-        content.getStyleClass().add("glass-panel"); // Ensure the content VBox has glass-panel style
+        content.getStyleClass().add("glass-panel");
 
         Button backButton = new Button("Back");
         backButton.getStyleClass().add("button");
         backButton.setPrefWidth(120);
-        // Navigate back to the specific class view if preselectedClass is not null, otherwise go to main view
         backButton.setOnAction(e -> {
             if (preselectedClass != null) {
                 showEventsByClassView(preselectedClass);
@@ -315,15 +312,16 @@ public class PlannerApp extends Application {
             }
         });
 
-        HBox buttonBox = (HBox) content.getChildren().get(1); // Index 1 since title is no longer in EventDialog
+        HBox buttonBox = (HBox) content.getChildren().get(1);
         buttonBox.getChildren().add(0, backButton);
         buttonBox.setSpacing(15);
+
+        Button okButton = (Button) buttonBox.getChildren().get(1);
 
         dialog.resultHandler = event -> {
             if (event != null) {
                 plannerService.saveEvent(event);
                 plannerService.movePastEventsToStorage();
-                // Navigate back to the specific class view if preselectedClass is not null, otherwise go to main view
                 if (preselectedClass != null) {
                     showEventsByClassView(preselectedClass);
                 } else {
@@ -332,34 +330,47 @@ public class PlannerApp extends Application {
             }
         };
 
-        // Create a new VBox to hold the title and the dialog's root
-        VBox mainLayout = new VBox(10); // 10 pixels spacing between title and dialog
+        VBox mainLayout = new VBox(10);
         mainLayout.setAlignment(Pos.CENTER);
         mainLayout.getChildren().addAll(titleLabel, dialog.root);
 
-        // Create a new Region to act as the additional translucent box behind the content
         Region translucentBox = new Region();
-        // Use the same distinct style as in showMainView and showAddEventView
-        translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.5);" +
+        translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.4);" +
                 "-fx-background-radius: 30;" +
                 "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
-        // Set a fixed size to wrap around the title and form with padding
-        translucentBox.setPrefWidth(450); // Match the reduced width from the previous update
+        translucentBox.setPrefWidth(450);
         translucentBox.setPrefHeight(680);
         translucentBox.setMaxWidth(450);
         translucentBox.setMaxHeight(680);
         translucentBox.setMinWidth(450);
         translucentBox.setMinHeight(680);
 
-        // Create a StackPane to layer the translucent box behind the mainLayout
         StackPane contentWithBackdrop = new StackPane();
         contentWithBackdrop.getChildren().addAll(translucentBox, mainLayout);
         StackPane.setAlignment(contentWithBackdrop, Pos.CENTER);
 
-        // Add the contentWithBackdrop to the root StackPane
         root.getChildren().add(contentWithBackdrop);
-        root.setAlignment(Pos.CENTER); // Center the entire layout in the window
-        previousView = contentWithBackdrop; // Store the contentWithBackdrop as the previous view
+        root.setAlignment(Pos.CENTER);
+        previousView = contentWithBackdrop;
+
+        // Add key event handler to capture Enter key press
+        contentWithBackdrop.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                okButton.fire();
+                event.consume();
+            }
+        });
+
+        // Ensure the newClassField is enabled and editable if "Add New Class..." is selected
+        if (preselectedClass == null) {
+            Platform.runLater(() -> {
+                dialog.newClassField.setDisable(false);
+                dialog.newClassField.requestFocus();
+            });
+        }
+
+        // Ensure the window is focused
+        Platform.runLater(() -> root.getScene().getWindow().requestFocus());
 
         FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
         fadeIn.setFromValue(0);
@@ -608,6 +619,7 @@ public class PlannerApp extends Application {
         // Create and style the title label
         Label title = new Label("Events for " + className);
         title.getStyleClass().add("dialog-label");
+        title.setStyle("-fx-font-size: 40");
 
         VBox content = new VBox(15);
         content.getStyleClass().add("glass-panel");

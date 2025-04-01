@@ -1,4 +1,1 @@
-Birthdays|Jacob|2025-06-02 00:00|
-Birthdays|Jeff|2025-05-06 00:00|
-Birthdays|Joe|2025-07-11 00:00|
-important test|Important Test|2025-04-01 00:00|This is a description
+guys stuff|foootball!|2025-04-05 13:08|time test, add time description and restrict varaibles that can be entered. also fix time ui.
