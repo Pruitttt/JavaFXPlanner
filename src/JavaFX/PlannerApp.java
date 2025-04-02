@@ -772,7 +772,7 @@ public class PlannerApp extends Application {
         cardContent.getStyleClass().add("event-card");
         cardContent.setPadding(new Insets(15));
         cardContent.setMaxWidth(320);
-        cardContent.setMaxHeight(200);
+        cardContent.setMaxHeight(225);
         cardContent.setAlignment(Pos.CENTER);
 
         Label titleLabel = new Label("Event Details");
@@ -797,6 +797,11 @@ public class PlannerApp extends Application {
         Label dateValue = new Label(event.getDateTimeFormatted());
         dateValue.getStyleClass().add("card-label-value");
 
+        Label timeKey = new Label("Time:");
+        timeKey.getStyleClass().add("card-label-key");
+        Label timeValue = new Label(event.getTimeFormatted());
+        timeValue.getStyleClass().add("card-label-value");
+
         Label descKey = new Label("Description:");
         descKey.getStyleClass().add("card-label-key");
         Label descValue = new Label(event.getDescription().isEmpty() ? "N/A" : event.getDescription());
@@ -808,8 +813,10 @@ public class PlannerApp extends Application {
         grid.add(classValue, 1, 0);
         grid.add(dateKey, 0, 1);
         grid.add(dateValue, 1, 1);
-        grid.add(descKey, 0, 2);
-        grid.add(descValue, 1, 2);
+        grid.add(timeKey, 0, 2);
+        grid.add(timeValue, 1, 2);
+        grid.add(descKey, 0, 3);
+        grid.add(descValue, 1, 3);
 
         // Create buttons without setting actions yet
         Button modifyButton = new Button("Modify");

@@ -39,6 +39,11 @@ public class TimeSlot {
         return dateTime != null ? dateTime.format(formatter) : "null";
     }
 
+    public String getTimeFormatted() {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("h:mm a");
+        return dateTime != null ? dateTime.format(formatter) : "null";
+    }
+
     @Override
     public String toString() {
         String dateTimeStr = (dateTime != null) ? dateTime.format(FORMATTER) : "null";
