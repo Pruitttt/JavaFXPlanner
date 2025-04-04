@@ -241,6 +241,7 @@ public class PlannerService {
         return null;
     }
 
+
     public VBox showDescriptionDialog(String description) {
         VBox vBox = new VBox();
         vBox.setSpacing(10);
@@ -321,6 +322,45 @@ public class PlannerService {
 
         saveEvents(updatedEvents);
         notifyUpdateListeners();
+    }
+
+    public void renameClass(String oldClassName, String newClassName) {
+        // Validate the new class name
+        if (newClassName == null || newClassName.trim().isEmpty()) {
+            throw new IllegalArgumentException("New class name cannot be empty.");
+        }
+        if (classExists(newClassName) && !newClassName.equalsIgnoreCase(oldClassName)) {
+            throw new IllegalArgumentException("Class name '" + newClassName + "' already exists.");
+        }
+
+        // Update the class name in classes.txt
+        List<String> classes = loadClasses();
+        int index = classes.indexOf(oldClassName);
+        if (index != -1) {
+            classes.set(index, newClassName);
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(CLASS_FILE))) {
+                for (String c : classes) {
+                    writer.write(c);
+                    writer.newLine();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        // Update all events with the old class name to use the new class name
+        List<TimeSlot> events = loadEvents();
+        boolean updated = false;
+        for (TimeSlot event : events) {
+            if (event.getClassName().equalsIgnoreCase(oldClassName)) {
+                event.setClassName(newClassName); // We'll need to add a setter for this
+                updated = true;
+            }
+        }
+        if (updated) {
+            saveEvents(events);
+            notifyUpdateListeners();
+        }
     }
 
     public boolean classExists(String className) {

@@ -201,6 +201,25 @@ public class PlannerApp extends Application {
         plannerService.movePastEventsToStorage();
         updateUpcomingEvents();
 
+        // Customize the cell factory to disable hover and selection effects
+        upcomingEventsList.setCellFactory(lv -> new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("-fx-background-color: transparent; -fx-text-fill: white;");
+                } else {
+                    setText(item);
+                    setStyle("-fx-background-color: transparent; -fx-text-fill: white;");
+                }
+                // Disable hover and selection background changes
+                setOnMouseEntered(e -> setStyle("-fx-background-color: transparent; -fx-text-fill: white;"));
+                setOnMouseExited(e -> setStyle("-fx-background-color: transparent; -fx-text-fill: white;"));
+                setOnMouseClicked(e -> setStyle("-fx-background-color: transparent; -fx-text-fill: white;"));
+            }
+        });
+
         Button addEventBtn = new Button("Add Event");
         addEventBtn.getStyleClass().add("button");
         addEventBtn.setPrefWidth(120);
@@ -253,10 +272,11 @@ public class PlannerApp extends Application {
         root.setAlignment(Pos.CENTER);
         previousView = uiLayout;
 
+        // Updated handler to ignore "No upcoming events" message
         upcomingEventsList.setOnMouseClicked(event -> {
             if (event.getClickCount() == 2) {
                 String selectedEvent = upcomingEventsList.getSelectionModel().getSelectedItem();
-                if (selectedEvent != null) {
+                if (selectedEvent != null && !selectedEvent.equals("No upcoming events.")) {
                     String[] parts = selectedEvent.split(" - ");
                     if (parts.length < 3) {
                         showAlert("Error", "Invalid event format.");
@@ -969,32 +989,48 @@ public class PlannerApp extends Application {
         fadeIn.play();
     }
 
+    // Helper method to split the class name into two parts based on word order
+    private String[] splitClassName(String className) {
+        // Split the class name into words
+        String[] words = className.trim().split("\\s+");
+        if (words.length <= 1) {
+            // If there's only one word, return it as the second part (bottom) with an empty first part
+            return new String[]{"", className};
+        }
+
+        // Split into two parts based on word order
+        StringBuilder firstPart = new StringBuilder();
+        StringBuilder secondPart = new StringBuilder();
+        int splitIndex = words.length / 2; // Split roughly in the middle of the word count
+
+        // Build the first part (top)
+        for (int i = 0; i < splitIndex; i++) {
+            if (i > 0) firstPart.append(" ");
+            firstPart.append(words[i]);
+        }
+
+        // Build the second part (bottom)
+        for (int i = splitIndex; i < words.length; i++) {
+            if (i > splitIndex) secondPart.append(" ");
+            secondPart.append(words[i]);
+        }
+
+        return new String[]{firstPart.toString(), secondPart.toString()};
+    }
+
     private void showEventsByClassView(String className) {
         // Clear the content except for the background layers
         List<Node> childrenToKeep = List.of(backLayer, frontLayer);
         root.getChildren().removeIf(node -> !childrenToKeep.contains(node));
 
-        // Create and style the title label
-        Label title = new Label("Events for " + className);
-        title.getStyleClass().add("dialog-label");
-        title.setStyle("-fx-font-size: 40");
-        title.setWrapText(true); // Enable text wrapping
-        title.setMaxWidth(360); // Constrain title width to fit within content with padding
-        title.setAlignment(Pos.CENTER); // Center each line of text
-        title.setTextAlignment(TextAlignment.CENTER); // Ensure text alignment is centered per line
+        // Use a single-element array to hold the className, allowing updates in lambdas
+        final String[] classNameHolder = {className};
 
-        VBox content = new VBox(15);
-        content.getStyleClass().add("glass-panel");
-        content.setPadding(new Insets(20));
-        content.setMaxWidth(400); // Constrain content width
-        content.setAlignment(Pos.CENTER); // Center all children
-
-        // Add the title to the content VBox
-        content.getChildren().add(title);
-
+        // Define eventList and addEventBtn before the lambda expressions
         ListView<TimeSlot> eventList = new ListView<>();
-        eventList.getItems().addAll(plannerService.loadEventsForClass(className));
-        eventList.setPrefHeight(300);
+        eventList.getItems().addAll(plannerService.loadEventsForClass(classNameHolder[0]));
+        eventList.setMinHeight(50); // Minimum height when empty
+        eventList.setMaxHeight(300); // Maximum height to prevent excessive growth
         eventList.setPrefWidth(400);
         eventList.setMaxWidth(400);
         eventList.setMinWidth(400);
@@ -1022,7 +1058,12 @@ public class PlannerApp extends Application {
         Button addEventBtn = new Button("Add Event");
         addEventBtn.getStyleClass().add("button");
         addEventBtn.setPrefWidth(120);
-        addEventBtn.setOnAction(e -> showAddEventView(className));
+        addEventBtn.setOnAction(e -> showAddEventView(classNameHolder[0]));
+
+        Button backButton = new Button("Back");
+        backButton.getStyleClass().add("button");
+        backButton.setPrefWidth(120);
+        backButton.setOnAction(e -> showClassSelectionView());
 
         Button deleteClassBtn = new Button("Delete Class");
         deleteClassBtn.getStyleClass().add("button");
@@ -1054,7 +1095,7 @@ public class PlannerApp extends Application {
             confirmButton.getStyleClass().add("card-button-delete");
             confirmButton.setPrefWidth(100);
             confirmButton.setOnAction(evt -> {
-                plannerService.deleteClass(className);
+                plannerService.deleteClass(classNameHolder[0]);
                 root.getChildren().remove(confirmationCard); // Remove card after confirmation
                 showClassSelectionView();
             });
@@ -1087,36 +1128,216 @@ public class PlannerApp extends Application {
             timeline.play();
         });
 
-        Button backButton = new Button("Back");
-        backButton.getStyleClass().add("button");
-        backButton.setPrefWidth(120);
-        backButton.setOnAction(e -> showClassSelectionView());
-
         HBox buttonBox = new HBox(15, backButton, addEventBtn, deleteClassBtn);
         buttonBox.setAlignment(Pos.CENTER);
         buttonBox.setMaxWidth(400);
 
-        content.getChildren().addAll(eventList, buttonBox);
+        // Create a single Label for the class name (no splitting)
+        Label titleLabel = new Label(classNameHolder[0]);
+        titleLabel.getStyleClass().add("dialog-label");
+        titleLabel.setStyle("-fx-font-size: 40; -fx-background-color: transparent;");
+        titleLabel.setWrapText(true);
+        titleLabel.setAlignment(Pos.CENTER);
+        titleLabel.setTextAlignment(TextAlignment.CENTER);
+        titleLabel.setMouseTransparent(true); // Allow mouse events to pass through to hoverBackground
+
+        // Measure the natural width of the class name text
+        Label tempLabel = new Label(classNameHolder[0]);
+        tempLabel.getStyleClass().add("dialog-label");
+        tempLabel.setStyle("-fx-font-size: 40; -fx-background-color: transparent;");
+        tempLabel.setWrapText(false); // Do not wrap for measurement
+
+        // Add the tempLabel to a temporary scene to force layout calculation
+        StackPane tempPane = new StackPane(tempLabel);
+        Scene tempScene = new Scene(tempPane);
+        tempLabel.applyCss();
+        tempLabel.layout();
+
+        double naturalTextWidth = tempLabel.getBoundsInLocal().getWidth();
+        double hoverPaddingX = 20; // 10px padding on each side for the hover effect
+        double hoverBoxWidth = naturalTextWidth + (hoverPaddingX * 2); // Add padding to the hover effect box
+        titleLabel.setMaxWidth(Double.MAX_VALUE); // Allow the label to expand as needed
+        titleLabel.setPrefWidth(naturalTextWidth); // Set preferred width to the natural width
+
+        // Create a StackPane for the hover effect background
+        StackPane hoverBackground = new StackPane();
+        hoverBackground.setStyle("-fx-background-color: transparent;");
+        hoverBackground.setPrefWidth(hoverBoxWidth); // Set width to text width plus padding
+        hoverBackground.setPrefHeight(titleLabel.prefHeight(naturalTextWidth)); // Set height based on the label
+
+        // Add hover effect to the StackPane
+        hoverBackground.setOnMouseEntered(e -> {
+            hoverBackground.setStyle("-fx-background-color: rgba(255, 255, 255, 0.3); -fx-background-radius: 18;");
+        });
+        hoverBackground.setOnMouseExited(e -> {
+            hoverBackground.setStyle("-fx-background-color: transparent;");
+        });
+
+        // Create the TextField for editing the class name (initially not visible)
+        TextField titleField = new TextField(classNameHolder[0]);
+        titleField.getStyleClass().add("dialog-label");
+        titleField.setStyle("-fx-font-size: 40px; -fx-text-fill: white; -fx-background-color: transparent; -fx-alignment: center; " +
+                "-fx-focus-color: transparent; -fx-faint-focus-color: transparent; -fx-highlight-fill: transparent;");
+        titleField.setMaxWidth(Double.MAX_VALUE); // Allow the text field to expand as needed
+        titleField.setPrefWidth(naturalTextWidth); // Set preferred width to the natural width
+        titleField.setPrefHeight(titleLabel.prefHeight(naturalTextWidth)); // Match the label height
+        titleField.setAlignment(Pos.CENTER);
+        titleField.setVisible(false);
+
+        // Wrap the label, hover background, and TextField in a StackPane to overlay them
+        StackPane titlePane = new StackPane();
+        titlePane.getChildren().addAll(hoverBackground, titleLabel, titleField);
+        titlePane.setStyle("-fx-background-color: transparent;"); // Ensure the StackPane is transparent
+        titlePane.setPrefWidth(hoverBoxWidth); // Set the titlePane width to match the hover box
+
+        // Update the width when the class name changes
+        titleField.textProperty().addListener((obs, oldValue, newValue) -> {
+            tempLabel.setText(newValue);
+            tempLabel.applyCss();
+            tempLabel.layout();
+            double updatedTextWidth = tempLabel.getBoundsInLocal().getWidth();
+            titleLabel.setPrefWidth(updatedTextWidth); // Update prefWidth dynamically
+            double updatedHoverBoxWidth = updatedTextWidth + (hoverPaddingX * 2); // Add padding to the hover effect box
+            hoverBackground.setPrefWidth(updatedHoverBoxWidth);
+            titleField.setPrefWidth(updatedTextWidth);
+            titlePane.setPrefWidth(updatedHoverBoxWidth);
+            // Update the height based on the new width
+            double newTitleHeight = titleLabel.prefHeight(updatedTextWidth);
+            hoverBackground.setPrefHeight(newTitleHeight);
+            titleField.setPrefHeight(newTitleHeight);
+        });
+
+        // Switch to TextField on click
+        titleLabel.setOnMouseClicked(e -> {
+            titleLabel.setVisible(false);
+            hoverBackground.setVisible(false);
+            titleField.setVisible(true);
+            titleField.requestFocus();
+            titleField.selectAll();
+        });
+
+        // Also allow clicking the hover background to trigger editing
+        hoverBackground.setOnMouseClicked(e -> {
+            titleLabel.setVisible(false);
+            hoverBackground.setVisible(false);
+            titleField.setVisible(true);
+            titleField.requestFocus();
+            titleField.selectAll();
+        });
+
+        // Handle finishing the edit (Enter)
+        titleField.setOnAction(e -> {
+            String newClassName = titleField.getText().trim();
+            try {
+                if (newClassName.isEmpty()) {
+                    showAlert("Invalid Input", "Class name cannot be empty.");
+                    titleField.setText(classNameHolder[0]); // Revert to original
+                } else if (plannerService.classExists(newClassName) && !newClassName.equalsIgnoreCase(classNameHolder[0])) {
+                    showAlert("Invalid Input", "Class name '" + newClassName + "' already exists.");
+                    titleField.setText(classNameHolder[0]); // Revert to original
+                } else if (!newClassName.equals(classNameHolder[0])) {
+                    // Rename the class
+                    plannerService.renameClass(classNameHolder[0], newClassName);
+                    classNameHolder[0] = newClassName; // Update the class name
+                    // Update the events list
+                    eventList.getItems().setAll(plannerService.loadEventsForClass(classNameHolder[0]));
+                    // Update the Add Event button's action
+                    addEventBtn.setOnAction(evt -> showAddEventView(classNameHolder[0]));
+                    // Update the label text
+                    titleLabel.setText(newClassName);
+                }
+                titleField.setVisible(false);
+                titleLabel.setVisible(true);
+                hoverBackground.setVisible(true);
+            } catch (IllegalArgumentException ex) {
+                showAlert("Error", ex.getMessage());
+                titleField.setText(classNameHolder[0]); // Revert to original
+                titleField.setVisible(false);
+                titleLabel.setVisible(true);
+                hoverBackground.setVisible(true);
+            }
+        });
+
+        // Revert to Label when focus is lost
+        titleField.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+            if (!isFocused) {
+                String newClassName = titleField.getText().trim();
+                try {
+                    if (newClassName.isEmpty()) {
+                        showAlert("Invalid Input", "Class name cannot be empty.");
+                        titleField.setText(classNameHolder[0]); // Revert to original
+                    } else if (plannerService.classExists(newClassName) && !newClassName.equalsIgnoreCase(classNameHolder[0])) {
+                        showAlert("Invalid Input", "Class name '" + newClassName + "' already exists.");
+                        titleField.setText(classNameHolder[0]); // Revert to original
+                    } else if (!newClassName.equals(classNameHolder[0])) {
+                        // Rename the class
+                        plannerService.renameClass(classNameHolder[0], newClassName);
+                        classNameHolder[0] = newClassName; // Update the class name
+                        // Update the events list
+                        eventList.getItems().setAll(plannerService.loadEventsForClass(classNameHolder[0]));
+                        // Update the Add Event button's action
+                        addEventBtn.setOnAction(evt -> showAddEventView(classNameHolder[0]));
+                        // Update the label text
+                        titleLabel.setText(newClassName);
+                    }
+                    titleField.setVisible(false);
+                    titleLabel.setVisible(true);
+                    hoverBackground.setVisible(true);
+                } catch (IllegalArgumentException ex) {
+                    showAlert("Error", ex.getMessage());
+                    titleField.setText(classNameHolder[0]); // Revert to original
+                    titleField.setVisible(false);
+                    titleLabel.setVisible(true);
+                    hoverBackground.setVisible(true);
+                }
+            }
+        });
+
+        // Create the content VBox to hold the title, event list, and buttons
+        VBox content = new VBox(15);
+        content.getStyleClass().add("glass-panel");
+        content.setPadding(new Insets(20));
+        content.setAlignment(Pos.CENTER);
+        content.setStyle("-fx-background-color: transparent;"); // Ensure the content VBox is transparent
+
+        // Add the titlePane, eventList, and buttonBox to the content VBox
+        content.getChildren().addAll(titlePane, eventList, buttonBox);
 
         // Create the main layout
         VBox mainLayout = new VBox(10);
         mainLayout.setAlignment(Pos.CENTER);
-        mainLayout.getChildren().addAll(content); // Only add content here to avoid extra nesting
+        mainLayout.getChildren().addAll(content);
+        mainLayout.setStyle("-fx-background-color: transparent;"); // Ensure the mainLayout is transparent
 
         // Create the translucent box
         Region translucentBox = new Region();
         translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.5);" +
                 "-fx-background-radius: 30;" +
                 "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
-        translucentBox.setPrefWidth(450); // Fixed preferred width
-        translucentBox.setPrefHeight(500); // Fixed preferred height
-        translucentBox.setMaxWidth(450); // Constrain maximum width
-        translucentBox.setMaxHeight(550); // Constrain maximum height
 
-        // Wrap the content in a StackPane with the translucent box
+        // Layer the translucent box and content in a StackPane
         StackPane contentWithBackdrop = new StackPane();
         contentWithBackdrop.getChildren().addAll(translucentBox, mainLayout);
-        StackPane.setAlignment(contentWithBackdrop, Pos.CENTER);
+        contentWithBackdrop.setStyle("-fx-background-color: transparent;"); // Ensure the StackPane is transparent
+        StackPane.setAlignment(mainLayout, Pos.CENTER);
+        StackPane.setAlignment(translucentBox, Pos.CENTER);
+
+        // Dynamically set the width and height of translucentBox and contentWithBackdrop
+        content.boundsInLocalProperty().addListener((obs, oldBounds, newBounds) -> {
+            double maxWidth = Math.max(hoverBoxWidth, 400); // Ensure at least the width of the event list/buttons
+            double paddingX = 40; // 20px padding on each side
+            translucentBox.setPrefWidth(maxWidth + paddingX);
+            translucentBox.setMaxWidth(maxWidth + paddingX);
+            content.setMaxWidth(maxWidth);
+            contentWithBackdrop.setPrefWidth(maxWidth + paddingX);
+
+            double paddingY = 20; // 10px padding on top and bottom
+            double mainLayoutSpacing = 10; // 10px spacing in mainLayout
+            double totalHeight = newBounds.getHeight() + mainLayoutSpacing + paddingY;
+            translucentBox.setPrefHeight(totalHeight);
+            translucentBox.setMaxHeight(totalHeight);
+            contentWithBackdrop.setPrefHeight(totalHeight); // Use prefHeight for better layout control
+        });
 
         // Add to the root
         root.getChildren().add(contentWithBackdrop);

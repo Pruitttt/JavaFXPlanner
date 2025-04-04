@@ -22,10 +22,10 @@
     -fx-background-color: rgba(150, 150, 150, 0.35); /* Neutral gray base */
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-background-radius: 8;
+    -fx-background-radius: 18;
     -fx-border-color: rgba(255, 255, 255, 0.4);
     -fx-border-width: 1;
-    -fx-border-radius: 8;
+    -fx-border-radius: 18;
     -fx-padding: 8 15;
     -fx-pref-height: 35px;
     -fx-cursor: hand;
@@ -93,8 +93,8 @@
     -fx-text-fill: white;
     -fx-border-color: rgba(255, 255, 255, 0.7);
     -fx-border-width: 1;
-    -fx-border-radius: 8;
-    -fx-background-radius: 8;
+    -fx-border-radius: 18;
+    -fx-background-radius: 18;
     -fx-prompt-text-fill: rgba(255, 255, 255, 0.7);
     -fx-padding: 8 12;
     -fx-pref-height: 35px;
@@ -129,7 +129,7 @@
 /* ComboBox Dropdown Menu */
 .combo-box-popup .list-view {
     -fx-background-color: rgba(150, 150, 150, 0.9); /* Slightly more opaque for dropdown */
-    -fx-border-radius: 8;
+    -fx-border-radius: 18;
 }
 
 /* Selected item inside ComboBox dropdown */
@@ -141,9 +141,9 @@
 /* ScrollPane Styling */
 .scroll-pane {
     -fx-background-color: rgba(150, 150, 150, 0.25); /* Neutral gray translucency */
-    -fx-background-radius: 15;
+    -fx-background-radius: 18;
     -fx-border-color: rgba(255, 255, 255, 0.5);
-    -fx-border-radius: 10;
+    -fx-border-radius: 18;
     -fx-padding: 5;
 }
 
@@ -154,12 +154,12 @@
 /* Scrollbars Styling */
 .scroll-pane .scroll-bar:vertical {
     -fx-background-color: rgba(150, 150, 150, 0.2);
-    -fx-border-radius: 5;
+    -fx-border-radius: 18;
 }
 
 .scroll-pane .scroll-bar .thumb {
     -fx-background-color: rgba(150, 150, 150, 0.6);
-    -fx-background-radius: 5;
+    -fx-background-radius: 18;
 }
 
 .scroll-pane .scroll-bar .thumb:hover {
@@ -196,8 +196,8 @@
     -fx-background-color: rgba(150, 150, 150, 0.35); /* Match button style */
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-background-radius: 8;
-    -fx-border-radius: 8;
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
 }
 
 .dialog-pane .button:hover {
@@ -211,7 +211,7 @@
 /* Custom class for the dialog background */
 .custom-dialog-background {
     -fx-background-color: rgba(150, 150, 150, 0.25); /* Match glass-panel */
-    -fx-background-radius: 15;
+    -fx-background-radius: 18;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 15, 0.3, 0, 0);
     -fx-padding: 20;
 }
@@ -250,32 +250,32 @@
 
 /* Event Card Styling */
 .event-card {
-    -fx-background-color: rgba(150, 150, 150, 0.9); /* Neutral gray translucency */
-    -fx-background-radius: 10;
+    -fx-background-color: rgba(150, 150, 150, 1); /* Neutral gray translucency */
+    -fx-background-radius: 18;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0.3, 0, 0);
 }
 
 /* Card-specific buttons */
 .card-button-modify {
-    -fx-background-color: rgba(150, 150, 150, 0.35);
+    -fx-background-color: rgba(150, 150, 150, 1);
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-background-radius: 8;
-    -fx-border-radius: 8;
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
 }
 
 .card-button-delete {
-    -fx-background-color: rgba(150, 150, 150, 0.35);
+    -fx-background-color: rgba(150, 150, 150, 1);
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-background-radius: 8;
-    -fx-border-radius: 8;
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
 }
 
 .card-button-close {
-    -fx-background-color: rgba(150, 150, 150, 0.35);
+    -fx-background-color: rgba(150, 150, 150, 1);
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-background-radius: 8;
-    -fx-border-radius: 8;
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
 }

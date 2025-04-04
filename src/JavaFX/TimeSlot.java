@@ -70,4 +70,9 @@ public class TimeSlot {
             throw new IllegalArgumentException("Invalid date format in event: " + eventString, e);
         }
     }
+
+    public void setClassName(String newClassName) {
+        newClassName = newClassName.trim();
+        this.className = newClassName;
+    }
 }
