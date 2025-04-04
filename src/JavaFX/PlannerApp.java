@@ -1594,69 +1594,113 @@ public class PlannerApp extends Application {
         // Create and style the title label
         Label titleLabel = new Label("Modify Event");
         titleLabel.getStyleClass().add("dialog-label");
-        titleLabel.setStyle("-fx-font-size: 40");
+        titleLabel.setStyle("-fx-font-size: 40px;");
 
-        VBox content = new VBox(15);
+        VBox content = new VBox(10);
         content.getStyleClass().add("glass-panel");
         content.setPadding(new Insets(20));
-        content.setMaxWidth(400);
+        content.setMaxWidth(500);
 
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(12);
 
+        Label classLabel = new Label("Class:");
+        classLabel.getStyleClass().add("card-label-key");
         TextField classField = new TextField(event.getClassName());
-        classField.setPrefWidth(200);
-        TextField nameField = new TextField(event.getEventName());
-        nameField.setPrefWidth(200);
+        classField.getStyleClass().add("text-field-custom");
+        classField.setPrefWidth(320);
+        classField.setStyle("-fx-prompt-text-fill: #ffffff;");
+
+        Label eventNameLabel = new Label("Event Name:");
+        eventNameLabel.getStyleClass().add("card-label-key");
+        TextField eventNameField = new TextField(event.getEventName());
+        eventNameField.getStyleClass().add("text-field-custom");
+        eventNameField.setPrefWidth(320);
+        eventNameField.setStyle("-fx-prompt-text-fill: #ffffff;");
+
+        Label dateLabel = new Label("Date:");
+        dateLabel.getStyleClass().add("card-label-key");
         TextField monthField = new TextField(String.valueOf(event.getDateTime().getMonthValue()));
         monthField.setPromptText("MM");
-        monthField.setPrefWidth(50);
+        monthField.getStyleClass().add("text-field-custom");
+        monthField.setPrefWidth(60);
+        monthField.setStyle("-fx-prompt-text-fill: #ffffff;");
         TextField dayField = new TextField(event.getDateTime().format(DateTimeFormatter.ofPattern("dd")));
         dayField.setPromptText("DD");
-        dayField.setPrefWidth(50);
+        dayField.getStyleClass().add("text-field-custom");
+        dayField.setPrefWidth(60);
+        dayField.setStyle("-fx-prompt-text-fill: #ffffff;");
         TextField yearField = new TextField(event.getDateTime().format(DateTimeFormatter.ofPattern("yyyy")));
         yearField.setPromptText("YYYY");
-        yearField.setPrefWidth(70);
+        yearField.getStyleClass().add("text-field-custom");
+        yearField.setPrefWidth(170);
+        yearField.setStyle("-fx-prompt-text-fill: #ffffff;");
         HBox dateBox = new HBox(5, monthField, new Label("/"), dayField, new Label("/"), yearField);
         dateBox.setAlignment(Pos.CENTER_LEFT);
+        dateBox.setPrefWidth(320);
 
+        Label timeLabel = new Label("Time:");
+        timeLabel.getStyleClass().add("card-label-key");
         TextField hourField = new TextField(event.getDateTime().format(DateTimeFormatter.ofPattern("hh")));
         hourField.setPromptText("HH");
-        hourField.setPrefWidth(50);
+        hourField.getStyleClass().add("text-field-custom");
+        hourField.setPrefWidth(60);
+        hourField.setStyle("-fx-prompt-text-fill: #ffffff;");
         TextField minuteField = new TextField(event.getDateTime().format(DateTimeFormatter.ofPattern("mm")));
         minuteField.setPromptText("MM");
-        minuteField.setPrefWidth(50);
+        minuteField.getStyleClass().add("text-field-custom");
+        minuteField.setPrefWidth(60);
+        minuteField.setStyle("-fx-prompt-text-fill: #ffffff;");
         ComboBox<String> amPmDropdown = new ComboBox<>();
         amPmDropdown.getItems().addAll("AM", "PM");
         amPmDropdown.setValue(event.getDateTime().getHour() < 12 ? "AM" : "PM");
-        amPmDropdown.setPrefWidth(70);
-        HBox timeBox = new HBox(5, hourField, new Label(":"), minuteField, amPmDropdown);
+        amPmDropdown.setPrefWidth(170);
+        amPmDropdown.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-prompt-text-fill: #ffffff;");
+        amPmDropdown.setCellFactory(listView -> new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item);
+                    setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
+                }
+            }
+        });
+        HBox timeBox = new HBox(10, hourField, new Label(":"), minuteField, amPmDropdown);
         timeBox.setAlignment(Pos.CENTER_LEFT);
+        timeBox.setPrefWidth(320);
 
+        Label descLabel = new Label("Description:");
+        descLabel.getStyleClass().add("card-label-key");
         TextArea descField = new TextArea(event.getDescription());
+        descField.setPromptText("Description");
         descField.setWrapText(true);
-        descField.setPrefRowCount(3);
-        descField.setPrefWidth(200);
+        descField.setPrefRowCount(5);
+        descField.setPrefWidth(320);
+        descField.getStyleClass().add("text-field-custom");
+        descField.setStyle("-fx-prompt-text-fill: #ffffff;");
 
-        grid.add(new Label("Class:"), 0, 0);
+        grid.add(classLabel, 0, 0);
         grid.add(classField, 1, 0);
-        grid.add(new Label("Event Name:"), 0, 1);
-        grid.add(nameField, 1, 1);
-        grid.add(new Label("Date:"), 0, 2);
+        grid.add(eventNameLabel, 0, 1);
+        grid.add(eventNameField, 1, 1);
+        grid.add(dateLabel, 0, 2);
         grid.add(dateBox, 1, 2);
-        grid.add(new Label("Time:"), 0, 3);
+        grid.add(timeLabel, 0, 3);
         grid.add(timeBox, 1, 3);
-        grid.add(new Label("Description:"), 0, 4);
+        grid.add(descLabel, 0, 4);
         grid.add(descField, 1, 4);
 
         Button saveButton = new Button("Save");
-        saveButton.getStyleClass().add("button");
-        saveButton.setPrefWidth(120);
+        saveButton.getStyleClass().add("card-button-modify"); // Match showAddEventView button style
+        saveButton.setPrefWidth(200);
         saveButton.setOnAction(e -> {
             try {
                 String className = classField.getText().trim();
-                String eventName = nameField.getText().trim();
+                String eventName = eventNameField.getText().trim();
                 String description = descField.getText().trim();
 
                 if (className.isEmpty() || eventName.isEmpty()) {
@@ -1684,8 +1728,8 @@ public class PlannerApp extends Application {
         });
 
         Button backButton = new Button("Back");
-        backButton.getStyleClass().add("button");
-        backButton.setPrefWidth(120);
+        backButton.getStyleClass().add("button"); // Match showAddEventView button style
+        backButton.setPrefWidth(200);
         backButton.setOnAction(e -> {
             root.getChildren().remove(content); // Remove the modify view
             if (previousView != null && !root.getChildren().contains(previousView)) {
@@ -1695,14 +1739,14 @@ public class PlannerApp extends Application {
             }
         });
 
-        HBox buttonBox = new HBox(15, backButton, saveButton);
+        HBox buttonBox = new HBox(20, backButton, saveButton);
         buttonBox.setAlignment(Pos.CENTER);
 
         content.getChildren().addAll(grid, buttonBox);
 
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
-        scrollPane.setMaxWidth(400);
+        scrollPane.setMaxWidth(500);
         StackPane.setMargin(scrollPane, new Insets(20));
 
         // Create a new VBox to hold the title and the content
@@ -1712,17 +1756,15 @@ public class PlannerApp extends Application {
 
         // Create a new Region to act as the additional translucent box behind the content
         Region translucentBox = new Region();
-        // Use the same distinct style as in the other views
-        translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.5);" +
+        translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.4);" +
                 "-fx-background-radius: 30;" +
                 "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
-        // Set a fixed size to wrap around the title, form fields, and buttons with padding
-        translucentBox.setPrefWidth(450); // Match the width from showEventsByClassView
-        translucentBox.setPrefHeight(500); // Match the height from showClassSelectionView and showPastEventsView
-        translucentBox.setMaxWidth(450);
-        translucentBox.setMaxHeight(500);
-        translucentBox.setMinWidth(450);
-        translucentBox.setMinHeight(500);
+        translucentBox.prefWidthProperty().bind(content.widthProperty().add(40));
+        translucentBox.prefHeightProperty().bind(content.heightProperty().add(40));
+        translucentBox.setMaxWidth(540);
+        translucentBox.setMaxHeight(600);
+        translucentBox.setMinWidth(540);
+        translucentBox.setMinHeight(600);
 
         // Create a StackPane to layer the translucent box behind the mainLayout
         StackPane contentWithBackdrop = new StackPane();
@@ -1731,8 +1773,8 @@ public class PlannerApp extends Application {
 
         // Add the contentWithBackdrop to the root StackPane
         root.getChildren().add(contentWithBackdrop);
-        root.setAlignment(Pos.CENTER); // Center the content in the window
-        previousView = contentWithBackdrop; // Store the contentWithBackdrop as the previous view
+        root.setAlignment(Pos.CENTER);
+        previousView = contentWithBackdrop;
 
         // Add key event handlers for Enter and Escape
         contentWithBackdrop.setOnKeyPressed(keyEvent -> {
@@ -1746,6 +1788,7 @@ public class PlannerApp extends Application {
         });
         contentWithBackdrop.setFocusTraversable(true);
 
+        // Add fade-in animation
         FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
         fadeIn.setFromValue(0);
         fadeIn.setToValue(1);

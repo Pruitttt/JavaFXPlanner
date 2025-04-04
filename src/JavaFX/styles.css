@@ -103,7 +103,7 @@
 /* Ensure TextArea's viewport and content match the TextArea's background */
 .text-area .viewport,
 .text-area .content {
-    -fx-background-color: rgba(150, 150, 150, 0.2);
+    -fx-background-color: transparent;
     -fx-border-color: transparent;
     -fx-border-width: 0;
 }
@@ -117,8 +117,6 @@
 /* Focused Effect */
 .text-field:focused, .combo-box:focused, .text-area:focused {
     -fx-background-color: rgba(150, 150, 150, 0.2);
-    -fx-border-color: white;
-    -fx-effect: dropshadow(gaussian, rgba(255, 255, 255, 0.5), 10, 0.5, 0, 0);
 }
 
 /* ComboBox Fixes */
