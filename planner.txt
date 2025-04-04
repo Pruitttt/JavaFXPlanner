@@ -1,2 +1,0 @@
-guys stuff|foootball!|2025-04-05 13:08|time test, add time description and restrict varaibles that can be entered. also fix time ui.
-guys stuff|beer|2025-08-11 23:00|

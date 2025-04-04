@@ -6,6 +6,7 @@ module JavaFXDemo {
     requires  javafx.media;
     requires  javafx.swing;
     requires java.sql;
+    requires java.smartcardio;
 
     exports JavaFX;
 }

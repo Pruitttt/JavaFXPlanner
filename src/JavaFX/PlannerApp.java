@@ -4,6 +4,8 @@ import javafx.animation.*;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -14,8 +16,11 @@ import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+
+import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -186,13 +191,10 @@ public class PlannerApp extends Application {
         title.getStyleClass().add("dialog-label");
 
         upcomingEventsList = new ListView<>();
-        // Set fixed preferred width and height for the ListView
         upcomingEventsList.setPrefWidth(400);
         upcomingEventsList.setPrefHeight(500);
-        // Set maximum width and height to prevent resizing
         upcomingEventsList.setMaxWidth(400);
         upcomingEventsList.setMaxHeight(500);
-        // Set minimum width and height to prevent shrinking
         upcomingEventsList.setMinWidth(400);
         upcomingEventsList.setMinHeight(500);
         plannerService.addUpdateListener(() -> Platform.runLater(this::updateUpcomingEvents));
@@ -218,29 +220,24 @@ public class PlannerApp extends Application {
         buttonRow.setAlignment(Pos.CENTER);
         buttonRow.setMaxWidth(400);
 
-        // Create a VBox to hold the ListView and buttons together
         VBox listWithButtons = new VBox(15, upcomingEventsList, buttonRow);
         listWithButtons.setAlignment(Pos.CENTER);
 
         StackPane listPane = new StackPane(listWithButtons);
-        listPane.getStyleClass().add("glass-panel"); // Apply glass-panel style to the entire container
+        listPane.getStyleClass().add("glass-panel");
         listPane.setMaxWidth(400);
-        listPane.setMaxHeight(560); // Height for ListView (500) + buttons (35) + spacing (15) + padding
+        listPane.setMaxHeight(560);
 
         uiLayout.setTop(title);
         BorderPane.setAlignment(title, Pos.CENTER);
-        // Add a top margin to move the title down
-        BorderPane.setMargin(title, new Insets(40, 0, 0, 0)); // 20 pixels top margin
+        BorderPane.setMargin(title, new Insets(40, 0, 0, 0));
         uiLayout.setCenter(listPane);
         BorderPane.setAlignment(listPane, Pos.CENTER);
 
-        // Create a new Region to act as the additional translucent box behind the content
         Region translucentBox = new Region();
-        // Use a distinct style to differentiate it from the ListView's background
         translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.4);" +
                 "-fx-background-radius: 30;" +
                 "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
-        // Size to wrap around the title, ListView, and buttons with padding
         translucentBox.setPrefWidth(500);
         translucentBox.setPrefHeight(700);
         translucentBox.setMaxWidth(500);
@@ -248,17 +245,14 @@ public class PlannerApp extends Application {
         translucentBox.setMinWidth(500);
         translucentBox.setMinHeight(700);
 
-        // Create a StackPane to layer the translucent box behind the uiLayout
         StackPane contentWithBackdrop = new StackPane();
         contentWithBackdrop.getChildren().addAll(translucentBox, uiLayout);
         StackPane.setAlignment(contentWithBackdrop, Pos.CENTER);
 
-        // Add the contentWithBackdrop to the root StackPane
         root.getChildren().add(contentWithBackdrop);
-        root.setAlignment(Pos.CENTER); // Center the content in the window
-        previousView = uiLayout; // Store the uiLayout as the previous view
+        root.setAlignment(Pos.CENTER);
+        previousView = uiLayout;
 
-        // Ensure the ListView's onMouseClicked handler works
         upcomingEventsList.setOnMouseClicked(event -> {
             if (event.getClickCount() == 2) {
                 String selectedEvent = upcomingEventsList.getSelectionModel().getSelectedItem();
@@ -279,6 +273,97 @@ public class PlannerApp extends Application {
             }
         });
 
+        // Track whether a confirmation card is open
+        final boolean[] isConfirmationCardOpen = {false};
+
+        // Key event handler for the main view
+        contentWithBackdrop.setOnKeyPressed(keyEvent -> {
+            if (keyEvent.getCode() == KeyCode.ENTER) {
+                keyEvent.consume();
+            } else if (keyEvent.getCode() == KeyCode.ESCAPE && !isConfirmationCardOpen[0]) {
+                // Prevent multiple cards from opening
+                isConfirmationCardOpen[0] = true;
+
+                // Create a confirmation card for exiting the application
+                VBox confirmationCard = new VBox(10);
+                confirmationCard.getStyleClass().add("event-card");
+                confirmationCard.setPadding(new Insets(15));
+                confirmationCard.setMaxWidth(320);
+                confirmationCard.setMaxHeight(200);
+                confirmationCard.setAlignment(Pos.CENTER);
+
+                Label cardTitle = new Label("Exit Application");
+                cardTitle.getStyleClass().add("card-title");
+
+                Separator separator = new Separator();
+                separator.getStyleClass().add("card-separator");
+                separator.setPrefWidth(280);
+
+                Label message = new Label("Are you sure you want to exit the application?");
+                message.setWrapText(true);
+                message.setMaxWidth(280);
+                message.setAlignment(Pos.CENTER);
+                message.getStyleClass().add("card-label-value");
+
+                Button confirmButton = new Button("Confirm");
+                confirmButton.getStyleClass().add("card-button-delete");
+                confirmButton.setPrefWidth(100);
+                confirmButton.setOnAction(evt -> {
+                    Platform.exit(); // Exit the application if confirmed
+                });
+
+                Button cancelButton = new Button("Cancel");
+                cancelButton.getStyleClass().add("card-button-close");
+                cancelButton.setPrefWidth(100);
+                cancelButton.setOnAction(evt -> {
+                    root.getChildren().remove(confirmationCard);
+                    isConfirmationCardOpen[0] = false; // Reset the flag when the card is closed
+                });
+
+                HBox buttonBox = new HBox(8, cancelButton, confirmButton);
+                buttonBox.setAlignment(Pos.CENTER);
+
+                confirmationCard.getChildren().addAll(cardTitle, separator, message, buttonBox);
+                StackPane.setAlignment(confirmationCard, Pos.CENTER);
+                StackPane.setMargin(confirmationCard, new Insets(10, 0, 10, 0));
+
+                root.getChildren().add(confirmationCard);
+
+                // Animation for card entrance
+                confirmationCard.setScaleX(0.8);
+                confirmationCard.setScaleY(0.8);
+                confirmationCard.setOpacity(0);
+                Timeline timeline = new Timeline(
+                        new KeyFrame(Duration.millis(150),
+                                new KeyValue(confirmationCard.scaleXProperty(), 1, Interpolator.EASE_OUT),
+                                new KeyValue(confirmationCard.scaleYProperty(), 1, Interpolator.EASE_OUT),
+                                new KeyValue(confirmationCard.opacityProperty(), 1, Interpolator.EASE_OUT)
+                        )
+                );
+                timeline.play();
+
+                // Ensure the confirmation card receives focus
+                Platform.runLater(() -> {
+                    confirmationCard.requestFocus();
+                });
+
+                // Add key event handlers for the confirmation card
+                confirmationCard.setOnKeyPressed(cardKeyEvent -> {
+                    if (cardKeyEvent.getCode() == KeyCode.ENTER) {
+                        confirmButton.fire(); // Trigger the Confirm button action
+                        cardKeyEvent.consume();
+                    } else if (cardKeyEvent.getCode() == KeyCode.ESCAPE) {
+                        cancelButton.fire(); // Trigger the Cancel button action
+                        cardKeyEvent.consume();
+                    }
+                });
+                confirmationCard.setFocusTraversable(true);
+
+                keyEvent.consume();
+            }
+        });
+        contentWithBackdrop.setFocusTraversable(true);
+
         FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
         fadeIn.setFromValue(0);
         fadeIn.setToValue(1);
@@ -293,17 +378,128 @@ public class PlannerApp extends Application {
         titleLabel.getStyleClass().add("dialog-label");
         titleLabel.setStyle("-fx-font-size: 40px;");
 
-        EventDialog dialog = new EventDialog(plannerService.loadClasses(), preselectedClass);
-        dialog.root.getStyleClass().add("glass-panel");
-
-        ScrollPane scrollPane = (ScrollPane) dialog.root.getChildren().get(0);
-        scrollPane.setStyle("-fx-background-color: rgba(150, 150, 150, 0.5)");
-        VBox content = (VBox) scrollPane.getContent();
+        VBox content = new VBox(10);
         content.getStyleClass().add("glass-panel");
+        content.setPadding(new Insets(20));
+        content.setMaxWidth(500);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(12);
+
+        Label classLabel = new Label("Class:");
+        classLabel.getStyleClass().add("card-label-key");
+        ComboBox<String> classDropdown = new ComboBox<>();
+        classDropdown.getItems().addAll(plannerService.loadClasses());
+        classDropdown.getItems().add("Add New Class...");
+        classDropdown.setValue(preselectedClass != null ? preselectedClass : "Add New Class...");
+        classDropdown.setPrefWidth(320);
+        classDropdown.setStyle("-fx-text-fill: white; -fx-prompt-text-fill: #cccccc;");
+
+        Label newClassLabel = new Label("New Class:");
+        newClassLabel.getStyleClass().add("card-label-key");
+        TextField newClassField = new TextField();
+        newClassField.setPromptText("New Class Name");
+        newClassField.getStyleClass().add("text-field-custom");
+        newClassField.setPrefWidth(320);
+        newClassField.setStyle("-fx-prompt-text-fill: #ffffff;");
+        newClassField.setDisable(classDropdown.getValue() != "Add New Class...");
+
+        classDropdown.setOnAction(e -> {
+            newClassField.setDisable(!classDropdown.getValue().equals("Add New Class..."));
+            if (classDropdown.getValue().equals("Add New Class...")) {
+                Platform.runLater(newClassField::requestFocus);
+            }
+        });
+
+        Label eventNameLabel = new Label("Event Name:");
+        eventNameLabel.getStyleClass().add("card-label-key");
+        TextField eventNameField = new TextField();
+        eventNameField.setPromptText("Event Name");
+        eventNameField.getStyleClass().add("text-field-custom");
+        eventNameField.setPrefWidth(320);
+        eventNameField.setStyle("-fx-prompt-text-fill: #ffffff;");
+
+        Label dateLabel = new Label("Date:");
+        dateLabel.getStyleClass().add("card-label-key");
+        TextField monthField = new TextField();
+        monthField.setPromptText("MM");
+        monthField.getStyleClass().add("text-field-custom");
+        monthField.setPrefWidth(60);
+        monthField.setStyle("-fx-prompt-text-fill: #ffffff;");
+        TextField dayField = new TextField();
+        dayField.setPromptText("DD");
+        dayField.getStyleClass().add("text-field-custom");
+        dayField.setPrefWidth(60);
+        dayField.setStyle("-fx-prompt-text-fill: #ffffff;");
+        TextField yearField = new TextField();
+        yearField.setPromptText("YYYY");
+        yearField.getStyleClass().add("text-field-custom");
+        yearField.setPrefWidth(170);
+        yearField.setStyle("-fx-prompt-text-fill: #ffffff;");
+        HBox dateBox = new HBox(5, monthField, new Label("/"), dayField, new Label("/"), yearField);
+        dateBox.setAlignment(Pos.CENTER_LEFT);
+        dateBox.setPrefWidth(320);
+
+        Label timeLabel = new Label("Time:");
+        timeLabel.getStyleClass().add("card-label-key");
+        TextField hourField = new TextField();
+        hourField.setPromptText("HH");
+        hourField.getStyleClass().add("text-field-custom");
+        hourField.setPrefWidth(60);
+        hourField.setStyle("-fx-prompt-text-fill: #ffffff;");
+        TextField minuteField = new TextField();
+        minuteField.setPromptText("MM");
+        minuteField.getStyleClass().add("text-field-custom");
+        minuteField.setPrefWidth(60);
+        minuteField.setStyle("-fx-prompt-text-fill: #ffffff;");
+        ComboBox<String> amPmDropdown = new ComboBox<>();
+        amPmDropdown.getItems().addAll("AM", "PM");
+        amPmDropdown.setValue("AM");
+        amPmDropdown.setPrefWidth(170);
+        amPmDropdown.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-prompt-text-fill: #ffffff;");
+        amPmDropdown.setCellFactory(listView -> new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item);
+                    setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
+                }
+            }
+        });
+        HBox timeBox = new HBox(10, hourField, new Label(" : "), minuteField, amPmDropdown);
+        timeBox.setAlignment(Pos.CENTER_LEFT);
+        timeBox.setPrefWidth(320);
+
+        Label descLabel = new Label("Description:");
+        descLabel.getStyleClass().add("card-label-key");
+        TextArea descField = new TextArea();
+        descField.setPromptText("Description");
+        descField.setWrapText(true);
+        descField.setPrefRowCount(5);
+        descField.setPrefWidth(320);
+        descField.getStyleClass().add("text-field-custom");
+        descField.setStyle("-fx-prompt-text-fill: #ffffff;");
+
+        grid.add(classLabel, 0, 0);
+        grid.add(classDropdown, 1, 0);
+        grid.add(newClassLabel, 0, 1);
+        grid.add(newClassField, 1, 1);
+        grid.add(eventNameLabel, 0, 2);
+        grid.add(eventNameField, 1, 2);
+        grid.add(dateLabel, 0, 3);
+        grid.add(dateBox, 1, 3);
+        grid.add(timeLabel, 0, 4);
+        grid.add(timeBox, 1, 4);
+        grid.add(descLabel, 0, 5);
+        grid.add(descField, 1, 5);
 
         Button backButton = new Button("Back");
         backButton.getStyleClass().add("button");
-        backButton.setPrefWidth(120);
+        backButton.setPrefWidth(200);
         backButton.setOnAction(e -> {
             if (preselectedClass != null) {
                 showEventsByClassView(preselectedClass);
@@ -312,14 +508,49 @@ public class PlannerApp extends Application {
             }
         });
 
-        HBox buttonBox = (HBox) content.getChildren().get(1);
-        buttonBox.getChildren().add(0, backButton);
-        buttonBox.setSpacing(15);
+        Button okButton = new Button("OK");
+        okButton.getStyleClass().add("card-button-modify");
+        okButton.setPrefWidth(200);
+        okButton.setOnAction(e -> {
+            try {
+                String className = classDropdown.getValue().equals("Add New Class...") ? newClassField.getText().trim() : classDropdown.getValue();
+                String eventName = eventNameField.getText().trim();
+                String description = descField.getText().trim();
 
-        Button okButton = (Button) buttonBox.getChildren().get(1);
+                // Validate class and event name
+                if (className == null || className.isEmpty() || (className.equals("Add New Class...") && newClassField.getText().trim().isEmpty())) {
+                    showAlert("Invalid Input", "Class name cannot be empty.");
+                    return;
+                }
+                if (eventName.isEmpty()) {
+                    showAlert("Invalid Input", "Event Name cannot be empty.");
+                    return;
+                }
 
-        dialog.resultHandler = event -> {
-            if (event != null) {
+                // Validate date fields
+                String monthText = monthField.getText().trim();
+                String dayText = dayField.getText().trim();
+                String yearText = yearField.getText().trim();
+                if (monthText.isEmpty() || dayText.isEmpty()) {
+                    showAlert("Invalid Input", "Month and Day fields cannot be empty.");
+                    return;
+                }
+                int month = Integer.parseInt(monthText);
+                int day = Integer.parseInt(dayText);
+                int year = yearText.isEmpty() ? LocalDateTime.now().getYear() : Integer.parseInt(yearText);
+
+                // Validate time fields
+                String hourText = hourField.getText().trim();
+                String minuteText = minuteField.getText().trim();
+                int hour = hourText.isEmpty() ? 12 : Integer.parseInt(hourText);
+                int minute = minuteText.isEmpty() ? 0 : Integer.parseInt(minuteText);
+                String amPmValue = amPmDropdown.getValue() != null ? amPmDropdown.getValue() : "AM";
+
+                if ("PM".equals(amPmValue) && hour < 12) hour += 12;
+                if ("AM".equals(amPmValue) && hour == 12) hour = 0;
+
+                LocalDateTime dateTime = LocalDateTime.of(year, month, day, hour, minute);
+                TimeSlot event = new TimeSlot(className, eventName, dateTime, description);
                 plannerService.saveEvent(event);
                 plannerService.movePastEventsToStorage();
                 if (preselectedClass != null) {
@@ -327,23 +558,37 @@ public class PlannerApp extends Application {
                 } else {
                     showMainView();
                 }
+            } catch (NumberFormatException ex) {
+                showAlert("Invalid Input", "Ensure all date/time fields contain valid numbers.");
+            } catch (DateTimeException ex) {
+                showAlert("Invalid Date", "The date is invalid (e.g., February 30 does not exist).");
             }
-        };
+        });
+
+        HBox buttonBox = new HBox(20, backButton, okButton);
+        buttonBox.setAlignment(Pos.CENTER);
+
+        content.getChildren().addAll(grid, buttonBox);
+
+        ScrollPane scrollPane = new ScrollPane(content);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setMaxWidth(500);
+        StackPane.setMargin(scrollPane, new Insets(20));
 
         VBox mainLayout = new VBox(10);
         mainLayout.setAlignment(Pos.CENTER);
-        mainLayout.getChildren().addAll(titleLabel, dialog.root);
+        mainLayout.getChildren().addAll(titleLabel, scrollPane);
 
         Region translucentBox = new Region();
         translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.4);" +
                 "-fx-background-radius: 30;" +
                 "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
-        translucentBox.setPrefWidth(450);
-        translucentBox.setPrefHeight(680);
-        translucentBox.setMaxWidth(450);
-        translucentBox.setMaxHeight(680);
-        translucentBox.setMinWidth(450);
-        translucentBox.setMinHeight(680);
+        translucentBox.prefWidthProperty().bind(content.widthProperty().add(40));
+        translucentBox.prefHeightProperty().bind(content.heightProperty().add(40));
+        translucentBox.setMaxWidth(540);
+        translucentBox.setMaxHeight(600);
+        translucentBox.setMinWidth(540);
+        translucentBox.setMinHeight(600);
 
         StackPane contentWithBackdrop = new StackPane();
         contentWithBackdrop.getChildren().addAll(translucentBox, mainLayout);
@@ -353,23 +598,24 @@ public class PlannerApp extends Application {
         root.setAlignment(Pos.CENTER);
         previousView = contentWithBackdrop;
 
-        // Add key event handler to capture Enter key press
-        contentWithBackdrop.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER) {
+        contentWithBackdrop.setOnKeyPressed(keyEvent -> {
+            if (keyEvent.getCode() == KeyCode.ENTER) {
                 okButton.fire();
-                event.consume();
+                keyEvent.consume();
+            } else if (keyEvent.getCode() == KeyCode.ESCAPE) {
+                backButton.fire();
+                keyEvent.consume();
             }
         });
+        contentWithBackdrop.setFocusTraversable(true);
 
-        // Ensure the newClassField is enabled and editable if "Add New Class..." is selected
         if (preselectedClass == null) {
             Platform.runLater(() -> {
-                dialog.newClassField.setDisable(false);
-                dialog.newClassField.requestFocus();
+                newClassField.setDisable(false);
+                newClassField.requestFocus();
             });
         }
 
-        // Ensure the window is focused
         Platform.runLater(() -> root.getScene().getWindow().requestFocus());
 
         FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
@@ -432,6 +678,7 @@ public class PlannerApp extends Application {
 
             Label cardTitle = new Label("Clear Past Events");
             cardTitle.getStyleClass().add("card-title");
+            cardTitle.setStyle("-fx-font-size: 20px;");
 
             Separator separator = new Separator();
             separator.getStyleClass().add("card-separator");
@@ -519,6 +766,18 @@ public class PlannerApp extends Application {
         root.setAlignment(Pos.CENTER); // Center the content in the window
         previousView = contentWithBackdrop; // Store the contentWithBackdrop as the previous view
 
+        // Add key event handlers for Enter and Escape
+        contentWithBackdrop.setOnKeyPressed(keyEvent -> {
+            if (keyEvent.getCode() == KeyCode.ENTER) {
+                // No specific OK action here, as past events view has no OK button
+                keyEvent.consume();
+            } else if (keyEvent.getCode() == KeyCode.ESCAPE) {
+                backButton.fire(); // Trigger the Back button action
+                keyEvent.consume();
+            }
+        });
+        contentWithBackdrop.setFocusTraversable(true);
+
         FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
         fadeIn.setFromValue(0);
         fadeIn.setToValue(1);
@@ -556,14 +815,101 @@ public class PlannerApp extends Application {
         addClassBtn.getStyleClass().add("button");
         addClassBtn.setPrefWidth(200);
         addClassBtn.setOnAction(e -> {
-            TextInputDialog dialog = new TextInputDialog();
-            dialog.setTitle("Add Class");
-            dialog.setHeaderText("Enter New Class Name:");
-            dialog.setContentText("Class:");
-            dialog.showAndWait().ifPresent(className -> {
-                plannerService.addNewClass(className);
-                classListView.getItems().setAll(plannerService.loadClasses());
+            // Create the Add Class card content
+            VBox cardContent = new VBox(10);
+            cardContent.setStyle("-fx-background-color: rgba(150, 150, 150, 0.9); -fx-background-radius: 20; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
+            cardContent.setPadding(new Insets(15));
+            cardContent.setMaxWidth(320); // Match the card width
+            cardContent.setMaxHeight(200); // Constrain height
+            cardContent.setAlignment(Pos.TOP_LEFT); // Left-aligned content
+
+            // Enhanced Title
+            Label titleLabel = new Label("Add Class");
+            titleLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white; -fx-padding: 0 0 10 0;");
+
+            // Input section
+            Label promptLabel = new Label("Enter New Class Name:");
+            promptLabel.getStyleClass().add("card-label-key");
+
+            TextField classNameField = new TextField();
+            classNameField.setPromptText("Class:");
+            classNameField.getStyleClass().add("text-field-custom"); // Custom style for text field
+            classNameField.setMaxWidth(280); // Fit within the card
+
+            // Buttons (initially created without actions)
+            Button okButton = new Button("OK");
+            okButton.getStyleClass().add("card-button-modify"); // Match button style
+            okButton.setPrefWidth(100);
+
+            Button cancelButton = new Button("Cancel");
+            cancelButton.getStyleClass().add("card-button-close"); // Match button style
+            cancelButton.setPrefWidth(100);
+
+            HBox buttonBox = new HBox(10);
+            buttonBox.setAlignment(Pos.CENTER_LEFT); // Left-aligned buttons
+            buttonBox.getChildren().addAll(okButton, cancelButton);
+
+            // Add components to cardContent
+            cardContent.getChildren().addAll(titleLabel, promptLabel, classNameField, buttonBox);
+
+            // Create the card without a separate translucent box
+            StackPane cardWithBackdrop = new StackPane();
+            cardWithBackdrop.getChildren().add(cardContent); // Only cardContent, no translucentBox
+            StackPane.setAlignment(cardWithBackdrop, Pos.CENTER); // Keep centered in root
+            root.getChildren().add(cardWithBackdrop);
+
+            // Define the action for OK (shared between button and Enter key)
+            EventHandler<ActionEvent> okAction = okEvent -> {
+                String className = classNameField.getText().trim();
+                if (!className.isEmpty()) {
+                    plannerService.addNewClass(className);
+                    classListView.getItems().setAll(plannerService.loadClasses());
+                    root.getChildren().remove(cardWithBackdrop); // Close card
+                }
+            };
+
+            // Set OK button action
+            okButton.setOnAction(okAction);
+
+            // Add Enter key handler to the TextField
+            classNameField.setOnAction(event -> {
+                okAction.handle(new ActionEvent()); // Trigger the same action as OK button
             });
+
+            // Set Cancel button action
+            cancelButton.setOnAction(cancelEvent -> {
+                root.getChildren().remove(cardWithBackdrop); // Close card
+            });
+
+            // Add Escape key handler to close the card
+            cardWithBackdrop.setOnKeyPressed(keyEvent -> {
+                if (keyEvent.getCode() == KeyCode.ENTER) {
+                    okAction.handle(new ActionEvent()); // Trigger OK action on Enter
+                    keyEvent.consume();
+                } else if (keyEvent.getCode() == KeyCode.ESCAPE) {
+                    cancelButton.fire(); // Trigger the Cancel button action
+                    keyEvent.consume();
+                }
+            });
+
+            // Focus the text field initially
+            classNameField.requestFocus();
+
+            // Animate the card entry
+            cardWithBackdrop.setScaleX(0.8);
+            cardWithBackdrop.setScaleY(0.8);
+            cardWithBackdrop.setOpacity(0);
+            Timeline timeline = new Timeline(
+                    new KeyFrame(Duration.millis(150),
+                            new KeyValue(cardWithBackdrop.scaleXProperty(), 1, Interpolator.EASE_OUT),
+                            new KeyValue(cardWithBackdrop.scaleYProperty(), 1, Interpolator.EASE_OUT),
+                            new KeyValue(cardWithBackdrop.opacityProperty(), 1, Interpolator.EASE_OUT)
+                    )
+            );
+            timeline.play();
+
+            // Ensure the card can receive key events
+            cardWithBackdrop.setFocusTraversable(true);
         });
 
         Button backButton = new Button("Back");
@@ -605,6 +951,18 @@ public class PlannerApp extends Application {
         root.setAlignment(Pos.CENTER); // Center the content in the window
         previousView = contentWithBackdrop; // Store the contentWithBackdrop as the previous view
 
+        // Add key event handlers for Enter and Escape
+        contentWithBackdrop.setOnKeyPressed(keyEvent -> {
+            if (keyEvent.getCode() == KeyCode.ENTER) {
+                // No specific OK action here, as class selection view has no OK button
+                keyEvent.consume();
+            } else if (keyEvent.getCode() == KeyCode.ESCAPE) {
+                backButton.fire(); // Trigger the Back button action
+                keyEvent.consume();
+            }
+        });
+        contentWithBackdrop.setFocusTraversable(true);
+
         FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
         fadeIn.setFromValue(0);
         fadeIn.setToValue(1);
@@ -620,11 +978,19 @@ public class PlannerApp extends Application {
         Label title = new Label("Events for " + className);
         title.getStyleClass().add("dialog-label");
         title.setStyle("-fx-font-size: 40");
+        title.setWrapText(true); // Enable text wrapping
+        title.setMaxWidth(360); // Constrain title width to fit within content with padding
+        title.setAlignment(Pos.CENTER); // Center each line of text
+        title.setTextAlignment(TextAlignment.CENTER); // Ensure text alignment is centered per line
 
         VBox content = new VBox(15);
         content.getStyleClass().add("glass-panel");
         content.setPadding(new Insets(20));
-        content.setMaxWidth(400);
+        content.setMaxWidth(400); // Constrain content width
+        content.setAlignment(Pos.CENTER); // Center all children
+
+        // Add the title to the content VBox
+        content.getChildren().add(title);
 
         ListView<TimeSlot> eventList = new ListView<>();
         eventList.getItems().addAll(plannerService.loadEventsForClass(className));
@@ -672,6 +1038,7 @@ public class PlannerApp extends Application {
 
             Label cardTitle = new Label("Delete Class");
             cardTitle.getStyleClass().add("card-title");
+            cardTitle.setStyle("-fx-font-size: 20");
 
             Separator separator = new Separator();
             separator.getStyleClass().add("card-separator");
@@ -731,34 +1098,42 @@ public class PlannerApp extends Application {
 
         content.getChildren().addAll(eventList, buttonBox);
 
-        // Create a new VBox to hold the title and the content
+        // Create the main layout
         VBox mainLayout = new VBox(10);
         mainLayout.setAlignment(Pos.CENTER);
-        mainLayout.getChildren().addAll(title, content);
+        mainLayout.getChildren().addAll(content); // Only add content here to avoid extra nesting
 
-        // Create a new Region to act as the additional translucent box behind the content
+        // Create the translucent box
         Region translucentBox = new Region();
-        // Use the same distinct style as in the other views
         translucentBox.setStyle("-fx-background-color: rgba(150, 150, 150, 0.5);" +
                 "-fx-background-radius: 30;" +
                 "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
-        // Set a fixed size to wrap around the title, ListView, and buttons with padding
-        translucentBox.setPrefWidth(450);
-        translucentBox.setPrefHeight(500);
-        translucentBox.setMaxWidth(450);
-        translucentBox.setMaxHeight(500);
-        translucentBox.setMinWidth(450);
-        translucentBox.setMinHeight(500);
+        translucentBox.setPrefWidth(450); // Fixed preferred width
+        translucentBox.setPrefHeight(500); // Fixed preferred height
+        translucentBox.setMaxWidth(450); // Constrain maximum width
+        translucentBox.setMaxHeight(550); // Constrain maximum height
 
-        // Create a StackPane to layer the translucent box behind the mainLayout
+        // Wrap the content in a StackPane with the translucent box
         StackPane contentWithBackdrop = new StackPane();
         contentWithBackdrop.getChildren().addAll(translucentBox, mainLayout);
         StackPane.setAlignment(contentWithBackdrop, Pos.CENTER);
 
-        // Add the contentWithBackdrop to the root StackPane
+        // Add to the root
         root.getChildren().add(contentWithBackdrop);
         root.setAlignment(Pos.CENTER);
         previousView = contentWithBackdrop;
+
+        // Add key event handlers for Enter and Escape
+        contentWithBackdrop.setOnKeyPressed(keyEvent -> {
+            if (keyEvent.getCode() == KeyCode.ENTER) {
+                // No specific OK action here, as events view has no OK button
+                keyEvent.consume();
+            } else if (keyEvent.getCode() == KeyCode.ESCAPE) {
+                backButton.fire(); // Trigger the Back button action
+                keyEvent.consume();
+            }
+        });
+        contentWithBackdrop.setFocusTraversable(true);
 
         FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
         fadeIn.setFromValue(0);
@@ -767,6 +1142,9 @@ public class PlannerApp extends Application {
     }
 
     private void showEventDetailsView(TimeSlot event) {
+        // Create Planner Service
+        PlannerService plannerService = new PlannerService();
+
         // Create the EventDetails card content
         VBox cardContent = new VBox(10);
         cardContent.getStyleClass().add("event-card");
@@ -775,7 +1153,7 @@ public class PlannerApp extends Application {
         cardContent.setMaxHeight(225);
         cardContent.setAlignment(Pos.CENTER);
 
-        Label titleLabel = new Label("Event Details");
+        Label titleLabel = new Label("Event Details for " + event.getEventName());
         titleLabel.getStyleClass().add("card-title");
 
         Separator separator = new Separator();
@@ -791,20 +1169,45 @@ public class PlannerApp extends Application {
         classKey.getStyleClass().add("card-label-key");
         Label classValue = new Label(event.getClassName());
         classValue.getStyleClass().add("card-label-value");
+        classKey.setPadding(new Insets(5));
 
         Label dateKey = new Label("Date:");
         dateKey.getStyleClass().add("card-label-key");
         Label dateValue = new Label(event.getDateTimeFormatted());
         dateValue.getStyleClass().add("card-label-value");
+        dateKey.setPadding(new Insets(5));
 
         Label timeKey = new Label("Time:");
         timeKey.getStyleClass().add("card-label-key");
         Label timeValue = new Label(event.getTimeFormatted());
         timeValue.getStyleClass().add("card-label-value");
+        timeKey.setPadding(new Insets(5));
 
         Label descKey = new Label("Description:");
         descKey.getStyleClass().add("card-label-key");
         Label descValue = new Label(event.getDescription().isEmpty() ? "N/A" : event.getDescription());
+        descValue.setPadding(new Insets(5));
+        descValue.setOnMouseClicked(mouseEvent -> {
+            List<Node> originalContent = new ArrayList<>(cardContent.getChildren());
+            VBox descriptionVbox = plannerService.showDescriptionDialog(event.getDescription());
+            Button backButton = new Button("Back");
+            backButton.getStyleClass().add("button");
+            backButton.setPrefWidth(120);
+            backButton.setOnAction(e -> {
+                cardContent.getChildren().clear();
+                cardContent.getChildren().addAll(originalContent);
+            });
+            descriptionVbox.getChildren().add(backButton);
+            cardContent.getChildren().clear();
+            cardContent.getChildren().add(descriptionVbox);
+        });
+        // Apply hover effect with rounded edges
+        descValue.setOnMouseEntered(mouseEvent -> {
+            descValue.setStyle("-fx-background-color: rgba(255, 255, 255, 0.1); -fx-background-radius: 18;"); // Rounded background
+        });
+        descValue.setOnMouseExited(mouseEvent -> {
+            descValue.setStyle(""); // Reset to default
+        });
         descValue.getStyleClass().add("card-label-value");
         descValue.setWrapText(true);
         descValue.setMaxWidth(200);
@@ -818,7 +1221,7 @@ public class PlannerApp extends Application {
         grid.add(descKey, 0, 3);
         grid.add(descValue, 1, 3);
 
-        // Create buttons without setting actions yet
+        // Create buttons
         Button modifyButton = new Button("Modify");
         modifyButton.getStyleClass().add("card-button-modify");
         modifyButton.setPrefWidth(80);
@@ -841,21 +1244,20 @@ public class PlannerApp extends Application {
 
         cardContent.getChildren().addAll(titleLabel, separator, grid, buttonBox);
 
-
         // Create and add cardWithBackdrop
         StackPane cardWithBackdrop = new StackPane();
-        cardWithBackdrop.getChildren().addAll(cardContent);
+        cardWithBackdrop.getChildren().add(cardContent);
+        StackPane.setAlignment(cardWithBackdrop, Pos.CENTER); // Center the card
         StackPane.setMargin(cardWithBackdrop, new Insets(10, 0, 10, 0));
         root.getChildren().add(cardWithBackdrop);
 
-        // Now set the button actions after cardWithBackdrop is defined
+        // Set button actions
         modifyButton.setOnAction(e -> {
             root.getChildren().remove(cardWithBackdrop);
             showModifyEventView(event);
         });
 
         deleteButton.setOnAction(e -> {
-            // Create a confirmation card
             VBox confirmationCard = new VBox(10);
             confirmationCard.getStyleClass().add("event-card");
             confirmationCard.setPadding(new Insets(15));
@@ -865,6 +1267,7 @@ public class PlannerApp extends Application {
 
             Label cardTitle = new Label("Delete Event");
             cardTitle.getStyleClass().add("card-title");
+            cardTitle.setStyle("-fx-font-size: 20;");
 
             Separator separator2 = new Separator();
             separator2.getStyleClass().add("card-separator");
@@ -883,7 +1286,7 @@ public class PlannerApp extends Application {
                 plannerService.deleteEvent(event.getEventName(), event.getClassName());
                 updateUpcomingEvents();
                 root.getChildren().remove(confirmationCard);
-                root.getChildren().remove(cardWithBackdrop); // Now accessible
+                root.getChildren().remove(cardWithBackdrop);
                 showMainView();
             });
 
@@ -901,7 +1304,6 @@ public class PlannerApp extends Application {
 
             root.getChildren().add(confirmationCard);
 
-            // Animation for confirmation card
             confirmationCard.setScaleX(0.8);
             confirmationCard.setScaleY(0.8);
             confirmationCard.setOpacity(0);
@@ -919,7 +1321,19 @@ public class PlannerApp extends Application {
             root.getChildren().remove(cardWithBackdrop);
         });
 
-        // Animate the card with backdrop
+        // Add key event handlers for Enter and Escape
+        cardWithBackdrop.setOnKeyPressed(keyEvent -> {
+            if (keyEvent.getCode() == KeyCode.ENTER) {
+                // No specific OK action here, as event details view has no OK button
+                keyEvent.consume();
+            } else if (keyEvent.getCode() == KeyCode.ESCAPE) {
+                backButton.fire(); // Trigger the Back button action
+                keyEvent.consume();
+            }
+        });
+        cardWithBackdrop.setFocusTraversable(true);
+
+        // Animate the card with backdrop (initial entry only)
         cardWithBackdrop.setScaleX(0.8);
         cardWithBackdrop.setScaleY(0.8);
         cardWithBackdrop.setOpacity(0);
@@ -1081,6 +1495,18 @@ public class PlannerApp extends Application {
         root.setAlignment(Pos.CENTER); // Center the content in the window
         previousView = contentWithBackdrop; // Store the contentWithBackdrop as the previous view
 
+        // Add key event handlers for Enter and Escape
+        contentWithBackdrop.setOnKeyPressed(keyEvent -> {
+            if (keyEvent.getCode() == KeyCode.ENTER) {
+                saveButton.fire(); // Trigger the Save button action
+                keyEvent.consume();
+            } else if (keyEvent.getCode() == KeyCode.ESCAPE) {
+                backButton.fire(); // Trigger the Back button action
+                keyEvent.consume();
+            }
+        });
+        contentWithBackdrop.setFocusTraversable(true);
+
         FadeTransition fadeIn = new FadeTransition(Duration.millis(300), contentWithBackdrop);
         fadeIn.setFromValue(0);
         fadeIn.setToValue(1);
@@ -1102,31 +1528,66 @@ public class PlannerApp extends Application {
     }
 
     private void showAlert(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
+        // Create a custom card for the error message
+        VBox errorCard = new VBox(10);
+        errorCard.getStyleClass().add("event-card");
+        errorCard.setPadding(new Insets(15));
+        errorCard.setMaxWidth(320);
+        errorCard.setMaxHeight(200);
+        errorCard.setAlignment(Pos.CENTER);
 
-        DialogPane dialogPane = alert.getDialogPane();
-        StackPane newRoot = new StackPane();
-        newRoot.getChildren().add(dialogPane);
+        Label cardTitle = new Label(title);
+        cardTitle.getStyleClass().add("card-title");
+        cardTitle.setStyle("-fx-font-size: 20px;");
 
-        // Ensure the alert dialog also preserves the background
-        List<Node> childrenToKeep = List.of(backLayer, frontLayer);
-        newRoot.getChildren().removeIf(node -> !childrenToKeep.contains(node));
-        newRoot.getChildren().addAll( backLayer, frontLayer);
+        Separator separator = new Separator();
+        separator.getStyleClass().add("card-separator");
+        separator.setPrefWidth(280);
 
-        dialogPane.getStyleClass().add("custom-alert");
-        String cssFile = getClass().getResource("styles.css").toExternalForm();
-        dialogPane.getStylesheets().add(cssFile);
+        Label message = new Label(content);
+        message.setWrapText(true);
+        message.setMaxWidth(280);
+        message.setAlignment(Pos.CENTER);
+        message.getStyleClass().add("card-label-value");
 
-        Scene scene = new Scene(newRoot);
-        scene.setFill(Color.TRANSPARENT);
-        alert.setOnShown(event -> {
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.setScene(scene);
+        Button okButton = new Button("OK");
+        okButton.getStyleClass().add("card-button-close");
+        okButton.setPrefWidth(100);
+        okButton.setOnAction(evt -> root.getChildren().remove(errorCard)); // Remove the card on OK
+
+        HBox buttonBox = new HBox(8, okButton);
+        buttonBox.setAlignment(Pos.CENTER);
+
+        errorCard.getChildren().addAll(cardTitle, separator, message, buttonBox);
+        StackPane.setAlignment(errorCard, Pos.CENTER);
+        StackPane.setMargin(errorCard, new Insets(10, 0, 10, 0));
+
+        root.getChildren().add(errorCard);
+
+        // Animation for card entrance
+        errorCard.setScaleX(0.8);
+        errorCard.setScaleY(0.8);
+        errorCard.setOpacity(0);
+        Timeline timeline = new Timeline(
+                new KeyFrame(Duration.millis(150),
+                        new KeyValue(errorCard.scaleXProperty(), 1, Interpolator.EASE_OUT),
+                        new KeyValue(errorCard.scaleYProperty(), 1, Interpolator.EASE_OUT),
+                        new KeyValue(errorCard.opacityProperty(), 1, Interpolator.EASE_OUT)
+                )
+        );
+        timeline.play();
+
+        // Ensure the error card receives focus
+        Platform.runLater(() -> errorCard.requestFocus());
+
+        // Add key event handlers for the error card
+        errorCard.setOnKeyPressed(keyEvent -> {
+            if (keyEvent.getCode() == KeyCode.ENTER || keyEvent.getCode() == KeyCode.ESCAPE) {
+                okButton.fire(); // Trigger the OK button action
+                keyEvent.consume();
+            }
         });
-        alert.showAndWait();
+        errorCard.setFocusTraversable(true);
     }
 
     public static void main(String[] args) {

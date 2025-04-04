@@ -1,13 +1,19 @@
 package JavaFX;
 
 import javafx.application.Platform;
+import javafx.geometry.Pos;
+import javafx.scene.control.*;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 
+import javax.smartcardio.Card;
 import java.io.*;
 import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class PlannerService {
@@ -233,6 +239,26 @@ public class PlannerService {
             }
         }
         return null;
+    }
+
+    public VBox showDescriptionDialog(String description) {
+        VBox vBox = new VBox();
+        vBox.setSpacing(10);
+        Separator separator = new Separator();
+        Label titleLabel = new Label("Description");
+        titleLabel.setAlignment(Pos.CENTER);
+        Label descriptionLabel = new Label(description);
+        if (Objects.equals(description, "")) {
+            descriptionLabel = new Label("Description is empty");
+        } else {
+            descriptionLabel = new Label(description);
+        }
+        descriptionLabel.setAlignment(Pos.CENTER);
+        descriptionLabel.setWrapText(true);
+        vBox.getChildren().addAll(titleLabel, separator, descriptionLabel);
+        vBox.setAlignment(Pos.CENTER);
+
+        return vBox;
     }
 
     public void updateEvent(TimeSlot oldEvent, TimeSlot newEvent) {
