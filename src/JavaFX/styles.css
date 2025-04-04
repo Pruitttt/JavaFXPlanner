@@ -250,7 +250,7 @@
 
 /* Event Card Styling */
 .event-card {
-    -fx-background-color: rgba(150, 150, 150, 1); /* Neutral gray translucency */
+    -fx-background-color: rgba(150, 150, 150, 1); /* Neutral gray */
     -fx-background-radius: 18;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0.3, 0, 0);
 }

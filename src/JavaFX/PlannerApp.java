@@ -423,14 +423,20 @@ public class PlannerApp extends Application {
         newClassField.getStyleClass().add("text-field-custom");
         newClassField.setPrefWidth(320);
         newClassField.setStyle("-fx-prompt-text-fill: #ffffff;");
-        newClassField.setDisable(classDropdown.getValue() != "Add New Class...");
 
-        classDropdown.setOnAction(e -> {
-            newClassField.setDisable(!classDropdown.getValue().equals("Add New Class..."));
-            if (classDropdown.getValue().equals("Add New Class...")) {
-                Platform.runLater(newClassField::requestFocus);
-            }
-        });
+        // Fix: Disable class selection when preselectedClass is not null
+        if (preselectedClass != null) {
+            classDropdown.setDisable(true);
+            newClassField.setDisable(true);
+        } else {
+            newClassField.setDisable(classDropdown.getValue() != "Add New Class...");
+            classDropdown.setOnAction(e -> {
+                newClassField.setDisable(!classDropdown.getValue().equals("Add New Class..."));
+                if (classDropdown.getValue().equals("Add New Class...")) {
+                    Platform.runLater(newClassField::requestFocus);
+                }
+            });
+        }
 
         Label eventNameLabel = new Label("Event Name:");
         eventNameLabel.getStyleClass().add("card-label-key");
@@ -571,8 +577,20 @@ public class PlannerApp extends Application {
 
                 LocalDateTime dateTime = LocalDateTime.of(year, month, day, hour, minute);
                 TimeSlot event = new TimeSlot(className, eventName, dateTime, description);
+
+                // Fix: Add the new class if necessary and save the event using the main plannerService
+                if (classDropdown.getValue().equals("Add New Class...") && !newClassField.getText().trim().isEmpty()) {
+                    String newClassName = newClassField.getText().trim();
+                    if (!plannerService.classExists(newClassName)) {
+                        plannerService.addNewClass(newClassName);
+                        System.out.println("Added new class: " + newClassName);
+                    }
+                }
+
                 plannerService.saveEvent(event);
+                System.out.println("Event saved: " + event.toString());
                 plannerService.movePastEventsToStorage();
+
                 if (preselectedClass != null) {
                     showEventsByClassView(preselectedClass);
                 } else {
@@ -837,7 +855,7 @@ public class PlannerApp extends Application {
         addClassBtn.setOnAction(e -> {
             // Create the Add Class card content
             VBox cardContent = new VBox(10);
-            cardContent.setStyle("-fx-background-color: rgba(150, 150, 150, 0.9); -fx-background-radius: 20; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
+            cardContent.setStyle("-fx-background-color: rgba(150, 150, 150, 1); -fx-background-radius: 20; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 20, 0.3, 0, 5);");
             cardContent.setPadding(new Insets(15));
             cardContent.setMaxWidth(320); // Match the card width
             cardContent.setMaxHeight(200); // Constrain height

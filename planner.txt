@@ -1,2 +1,4 @@
 Name|Event|2025-07-08 11:22|This is a descripton. I hope it is ok. I didnt mean to write you, I just couldnt help myself.
 New Class|New Event|2025-06-07 00:00|
+New Class|New Event|2025-12-07 00:00|
+New Class|New Event #2|2025-12-19 00:00|
